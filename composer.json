@@ -1,0 +1,51 @@
+{
+    "name": "ccharz/laravel-dto-lite",
+    "description": "Simple Laravel Data Transfer Object",
+    "keywords": [
+        "laravel",
+        "dto"
+    ],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Christian Charzewski",
+            "email": "chris@cw-software.at",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "laravel/framework": "^8.37|^9.0|^10.0|^11.0",
+        "laravel/pint": "^1.14"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^6.40|^7.37|^8.17|^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ccharz\\DtoLite\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ccharz\\DtoLite\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ccharz\\DtoLite\\DtoLiteServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
