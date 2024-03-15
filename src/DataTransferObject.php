@@ -4,12 +4,17 @@ namespace Ccharz\DtoLite;
 
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
+use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 
-abstract class DataTransferObject implements Arrayable, Jsonable
+abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 {
+
     public static function propertyCasts(): ?array
     {
         return null;
@@ -47,6 +52,11 @@ abstract class DataTransferObject implements Arrayable, Jsonable
         }
 
         return $output;
+    }
+
+    public function toArrayWithRequest(Request $request): array
+    {
+        return $this->toArray();
     }
 
     public static function rules(): ?array
@@ -150,5 +160,24 @@ abstract class DataTransferObject implements Arrayable, Jsonable
         }
 
         throw new \Exception('Invalid data to make data transfer object');
+    }
+
+    public function toResponse($request)
+    {
+        return new JsonResponse($this->toArray());
+    }
+
+    public function resource(): JsonResource
+    {
+        return new DataTransferObjectJsonResource($this);
+    }
+
+    public static function resourceCollection($resource): AnonymousResourceCollection
+    {
+        return new DataTransferObjectJsonResourceCollection(
+            $resource,
+            DataTransferObjectJsonResource::class,
+            static::class
+        );
     }
 }

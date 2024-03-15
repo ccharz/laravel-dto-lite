@@ -3,7 +3,10 @@
 namespace Ccharz\DtoLite\Tests;
 
 use Ccharz\DtoLite\DataTransferObject;
+use Ccharz\DtoLite\DataTransferObjectJsonResource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use stdClass;
@@ -196,5 +199,40 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame('ABC', $newMock->test);
 
         $this->assertSame('ABC', app(get_class($mock))->test);
+    }
+
+    public function test_to_response_method(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $this->assertInstanceOf(JsonResponse::class, $mock->toResponse(request()));
+    }
+
+    public function test_it_can_generate_a_resource(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $this->assertInstanceOf(
+            JsonResource::class,
+            $mock->resource()
+        );
+    }
+
+    public function test_it_can_generate_a_resource_collection_from_dto(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $collection = $mock::resourceCollection([$mock]);
+
+        $this->assertSame('{"data":[{"test":"test"}]}', $collection->toResponse(request())->getContent());
+    }
+
+    public function test_it_can_generate_a_resource_collection_via_make(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $collection = $mock::resourceCollection([['test' => '1234']]);
+
+        $this->assertSame('{"data":[{"test":"1234"}]}', $collection->toResponse(request())->getContent());
     }
 }
