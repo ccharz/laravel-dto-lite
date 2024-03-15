@@ -15,12 +15,12 @@
         }
     ],
     "require": {
-        "php": "^8.0",
-        "laravel/framework": "^8.37|^9.0|^10.0|^11.0",
-        "laravel/pint": "^1.14"
+        "php": "^8.2",
+        "laravel/framework": "^10.0|^11.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^6.40|^7.37|^8.17|^9.0"
+        "laravel/pint": "^1.14",
+        "orchestra/testbench": "^8.17|^9.0"
     },
     "autoload": {
         "psr-4": {
@@ -42,7 +42,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Ccharz\\DtoLite\\DtoLiteServiceProvider"
+                "Ccharz\\DtoLite\\LaravelDtoLiteServiceProvider"
             ]
         }
     },

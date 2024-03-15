@@ -12,7 +12,7 @@ class LaravelDtoLiteServiceProvider extends ServiceProvider
             if ($app->has($class)) {
                 return;
             }
-            
+
             $app->bind($class, fn ($container) => $class::make(isset($container['request']) ? $container['request'] : []));
         });
     }

@@ -25,3 +25,5 @@ Homestead.json
 /coverage/
 composer.lock
 .phpunit.cache
+
+.DS_Store
