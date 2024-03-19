@@ -5,6 +5,7 @@ namespace Ccharz\DtoLite;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Validator;
 
 abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 {
+
+    public static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
 
     public static function propertyCasts(): ?array
     {
@@ -100,6 +103,11 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
         );
     }
 
+    public static function makeFromModel(Model $model): static
+    {
+        return static::makeFromArray($model->toArray());
+    }
+
     public static function makeFromArray(array $data): static
     {
         if ($casts = static::propertyCasts()) {
@@ -147,16 +155,20 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 
     public static function make(mixed $data): static
     {
+        if ($data instanceof Model) {
+            return static::makeFromModel($data);
+        }
+
+        if ($data instanceof Request) {
+            return static::makeFromRequest($data);
+        }
+
         if (is_null($data) || is_string($data)) {
             return static::makeFromJson($data, JSON_THROW_ON_ERROR);
         }
 
         if (is_array($data)) {
             return static::makeFromArray($data);
-        }
-
-        if ($data instanceof Request) {
-            return static::makeFromRequest($data);
         }
 
         throw new \Exception('Invalid data to make data transfer object');
@@ -174,7 +186,7 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 
     public static function resourceCollection($resource): AnonymousResourceCollection
     {
-        return new DataTransferObjectJsonResourceCollection(
+        return new static::$resourceCollectionClass(
             $resource,
             DataTransferObjectJsonResource::class,
             static::class

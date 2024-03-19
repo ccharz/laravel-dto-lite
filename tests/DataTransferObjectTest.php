@@ -3,7 +3,7 @@
 namespace Ccharz\DtoLite\Tests;
 
 use Ccharz\DtoLite\DataTransferObject;
-use Ccharz\DtoLite\DataTransferObjectJsonResource;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -52,6 +52,21 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
 
         $dto = $mock::make((new Request)->merge(['test' => 'Test1234']));
+
+        $this->assertSame('Test1234', $dto->test);
+    }
+
+    public function test_it_can_make_dto_from_eloquent_model(): void
+    {
+        $model = new class() extends Model
+        {
+            protected $guarded = [];
+        };
+        $model->fill(['test' => 'Test1234']);
+
+        $mock = $this->prepareSimpleDtoObject();
+
+        $dto = $mock::make($model);
 
         $this->assertSame('Test1234', $dto->test);
     }
