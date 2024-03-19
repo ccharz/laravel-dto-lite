@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Validator;
 
 abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 {
-
     public static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
 
     public static function propertyCasts(): ?array
