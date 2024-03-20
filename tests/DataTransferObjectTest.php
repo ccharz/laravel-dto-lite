@@ -3,12 +3,14 @@
 namespace Ccharz\DtoLite\Tests;
 
 use Ccharz\DtoLite\DataTransferObject;
+use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use stdClass;
 
 enum TestEnum: string
@@ -26,6 +28,14 @@ class DataTransferObjectTest extends TestCase
             public function __construct(public readonly string $test)
             {
             }
+        };
+    }
+
+    private function prepareSimpleModel(): Model
+    {
+        return new class() extends Model
+        {
+            protected $guarded = [];
         };
     }
 
@@ -58,10 +68,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_make_dto_from_eloquent_model(): void
     {
-        $model = new class() extends Model
-        {
-            protected $guarded = [];
-        };
+        $model = $this->prepareSimpleModel();
         $model->fill(['test' => 'Test1234']);
 
         $mock = $this->prepareSimpleDtoObject();
@@ -69,6 +76,51 @@ class DataTransferObjectTest extends TestCase
         $dto = $mock::make($model);
 
         $this->assertSame('Test1234', $dto->test);
+    }
+
+    public function test_it_is_castable_for_models(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+        $model = $this->prepareSimpleModel();
+
+        $cast = new DataTransferObjectCast(get_class($mock), []);
+
+        /* SET */
+        $this->assertSame('{"test":"Test1234"}', $cast->set($model, 'data', ['test' => 'Test1234'], []));
+        $this->assertNull($cast->set($model, 'data', null, []));
+
+        /* GET */
+        $this->assertInstanceOf(get_class($mock), $cast->get($model, 'data', '{"test":"Test1234"}', []));
+    }
+
+
+    public function test_it_castable_getter_throws_on_invalid_values(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+        $model = $this->prepareSimpleModel();
+
+        $cast = new DataTransferObjectCast(get_class($mock), []);
+
+        $this->expectExceptionMessage('data is not a string');
+        $cast->get($model, 'data', null, []);
+    }
+
+    public function test_it_castable_setter_throws_on_invalid_values(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+        $model = $this->prepareSimpleModel();
+
+        $cast = new DataTransferObjectCast(get_class($mock), []);
+
+        $this->expectException(InvalidArgumentException::class);
+        $cast->set($model, 'data', 'test1234', []);
+    }
+
+    public function test_dto_returns_the_correct_cast(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $this->assertInstanceOf(DataTransferObjectCast::class, $mock->castUsing([]));
     }
 
     public function test_it_can_serialize_to_json(): void
@@ -124,9 +176,11 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertInstanceOf(Carbon::class, $dto->test);
 
-        $dto = $mock::makeFromArray([]);
+        $dto = $mock::makeFromArray(['test' => null]);
 
         $this->assertNull($dto->test);
+
+        $this->assertSame(['test' => ['date']], $mock::rules());
     }
 
     public function test_it_can_cast_enums(): void
@@ -147,6 +201,76 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertInstanceOf(TestEnum::class, $dto->testEnum);
         $this->assertSame(TestEnum::B, $dto->testEnum);
+        $this->assertSame(['testEnum' => 'B'], $dto->toArray());
+        $this->assertCount(2, $mock::rules()['testEnum']);
+    }
+
+    public function test_it_can_cast_to_dto(): void
+    {
+        $mock_a = new class('') extends DataTransferObject
+        {
+            public function __construct(public readonly string $test)
+            {
+            }
+        };
+
+        $mock_b = new class('') extends DataTransferObject
+        {
+            public static string $className = '';
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function propertyCasts(): ?array
+            {
+                return ['test_cast' => static::$className];
+            }
+        };
+
+        $mock_b::$className = get_class($mock_a);
+
+        $dto = $mock_b::makeFromArray(['test_cast' => ['test' => 'A']]);
+
+        $this->assertInstanceOf(DataTransferObject::class, $dto->test_cast);
+        $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArray());
+        $this->assertSame(
+            [
+                'test_cast' => ['array'],
+                'test_cast.test' => [],
+                'className' => [], /* Needed to allow injection of anonymous class name for the test */
+            ],
+            $mock_b::rules()
+        );
+    }
+
+
+    public function test_it_can_cast_to_empty_dto(): void
+    {
+        $mock_a = new class('') extends DataTransferObject
+        {
+            public function __construct(public readonly string $test)
+            {
+            }
+        };
+
+        $mock_b = new class('') extends DataTransferObject
+        {
+            public static string $className = '';
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function propertyCasts(): ?array
+            {
+                return ['test_cast' => static::$className];
+            }
+        };
+
+        $mock_b::$className = get_class($mock_a);
+
+        $dto = $mock_b::makeFromArray(['test_cast' => null]);
+
+        $this->assertNull($dto->test_cast);
     }
 
     public function test_it_can_manipulate_rules(): void
@@ -159,13 +283,13 @@ class DataTransferObjectTest extends TestCase
 
             public static function rules(): ?array
             {
-                return ['test' => 'min:15'];
+                return ['test' => ['min:15']    ];
             }
         };
 
-        $this->assertSame(['child.test' => 'min:15'], $mock::appendRules([], 'child'));
+        $this->assertSame(['child' => ['array'], 'child.test' => ['min:15']], $mock::appendRules([], 'child'));
 
-        $this->assertSame(['child' => 'array', 'child.*' => 'array', 'child.*.test' => 'min:15'], $mock::appendArrayElementRules([], 'child'));
+        $this->assertSame(['child' => ['array'], 'child.*' => ['array'], 'child.*.test' => ['min:15']], $mock::appendArrayElementRules([], 'child'));
     }
 
     public function test_it_can_map_to_dto_arrays(): void

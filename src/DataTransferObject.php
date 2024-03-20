@@ -2,6 +2,8 @@
 
 namespace Ccharz\DtoLite;
 
+use BackedEnum;
+use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Contracts\Support\Responsable;
@@ -12,10 +14,16 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
-abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
+abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
 {
-    public static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
+    protected static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
+
+    public static function castUsing(array $arguments)
+    {
+        return new DataTransferObjectCast(static::class, $arguments);
+    }
 
     public static function propertyCasts(): ?array
     {
@@ -30,6 +38,7 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
     protected function simplify(mixed $value): mixed
     {
         return match (true) {
+            $value instanceof BackedEnum => $value->value,
             $value instanceof Carbon => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
             is_array($value) => array_map(
@@ -61,14 +70,10 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
         return $this->toArray();
     }
 
-    public static function rules(): ?array
-    {
-        return null;
-    }
-
     public static function appendRules(array $rules, string $key): array
     {
         if ($staticRules = static::rules()) {
+            $rules[$key][] = 'array';
             foreach ($staticRules as $field => $value) {
                 $rules[$key.'.'.$field] = $value;
             }
@@ -79,20 +84,53 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
 
     public static function appendArrayElementRules(array $rules, string $key): array
     {
-        $rules[$key] = 'array';
-        $rules[$key.'.*'] = 'array';
+        $rules[$key] = ['array'];
 
         return static::appendRules($rules, $key.'.*');
     }
 
-    public static function validate(array $data): array
+    public static function castRules(): array
     {
-        if ($rules = static::rules()) {
+        $casts = static::propertyCasts() ?? [];
+        $fields = get_class_vars(static::class);
 
-            return Validator::make($data, $rules)->validated();
+        $rules = [];
+
+        foreach ($fields as $field => $default) {
+            if (! in_array($field, ['resourceCollectionClass'])) {
+                $rules[$field] = [];
+                if ($cast = isset($casts[$field]) ? $casts[$field] : null) {
+                    switch (true) {
+                        case is_a($cast, DataTransferObject::class, true):
+                            $rules = $cast::appendRules($rules, $field);
+
+                            break;
+                        case $cast === 'datetime':
+                            $rules[$field][] = 'date';
+                            break;
+                        case enum_exists($cast) && method_exists($cast, 'from'):
+                            $rules[$field][] = 'string';
+                            $rules[$field][] = Rule::in(array_column($cast::cases(), 'value'));
+
+                            break;
+                    }
+                }
+            }
         }
 
-        return $data;
+        return $rules;
+    }
+
+    public static function rules(): ?array
+    {
+        $rules = static::castRules();
+
+        return $rules;
+    }
+
+    public static function validate(array $data): array
+    {
+        return Validator::make($data, static::rules() ?? [])->validated();
     }
 
     public static function makeFromRequest(Request $request): static
@@ -111,15 +149,22 @@ abstract class DataTransferObject implements Arrayable, Jsonable, Responsable
     {
         if ($casts = static::propertyCasts()) {
             foreach ($casts as $field => $cast) {
-                switch (true) {
-                    case $cast === 'datetime':
-                        $data[$field] = ! empty($data[$field])
-                            ? Carbon::parse($data[$field])
-                            : null;
-                        break;
-                    case enum_exists($cast) && method_exists($cast, 'from'):
-                        $data[$field] = $cast::from($data[$field]);
-                        break;
+                if (array_key_exists($field, $data)) {
+                    switch (true) {
+                        case $cast === 'datetime':
+                            $data[$field] = ! empty($data[$field])
+                                ? Carbon::parse($data[$field])
+                                : null;
+                            break;
+                        case is_a($cast, DataTransferObject::class, true):
+                            $data[$field] = ! is_null($data[$field]) && is_array($data[$field])
+                                ? $cast::makeFromArray($data[$field])
+                                : null;
+                            break;
+                        case enum_exists($cast) && method_exists($cast, 'from'):
+                            $data[$field] = $cast::from($data[$field]);
+                            break;
+                    }
                 }
             }
         }
