@@ -25,7 +25,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return new DataTransferObjectCast(static::class, $arguments);
     }
 
-    public static function propertyCasts(): ?array
+    public static function casts(): ?array
     {
         return null;
     }
@@ -91,7 +91,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function castRules(): array
     {
-        $casts = static::propertyCasts() ?? [];
+        $casts = static::casts() ?? [];
         $fields = get_class_vars(static::class);
 
         $rules = [];
@@ -101,6 +101,10 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
                 $rules[$field] = [];
                 if ($cast = isset($casts[$field]) ? $casts[$field] : null) {
                     switch (true) {
+                        case substr($cast, -2) === '[]':
+                            $dtoClass = substr($cast, 0, -2);
+                            $rules = $dtoClass::appendArrayElementRules($rules, $field);
+                            break;
                         case is_a($cast, DataTransferObject::class, true):
                             $rules = $cast::appendRules($rules, $field);
 
@@ -147,10 +151,18 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function makeFromArray(array $data): static
     {
-        if ($casts = static::propertyCasts()) {
+        if ($casts = static::casts()) {
             foreach ($casts as $field => $cast) {
                 if (array_key_exists($field, $data)) {
                     switch (true) {
+                        case substr($cast, -2) === '[]':
+                            if (is_array($data[$field])) {
+                                $dto = substr($cast, 0, -2);
+
+                                $data[$field] = $dto::mapToDtoArray($data, $field);
+                            }
+
+                            break;
                         case $cast === 'datetime':
                             $data[$field] = ! empty($data[$field])
                                 ? Carbon::parse($data[$field])
@@ -176,7 +188,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
     /**
      * @param  array<int,mixed>  $array_map
      */
-    public function mapToDtoArray(array $array_map = [], ?string $key = null): array
+    public static function mapToDtoArray(array $array_map = [], ?string $key = null): array
     {
         if ($key) {
             $array_map = isset($array_map[$key]) ? $array_map[$key] : [];

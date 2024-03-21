@@ -166,7 +166,7 @@ class DataTransferObjectTest extends TestCase
             {
             }
 
-            public static function propertyCasts(): ?array
+            public static function casts(): ?array
             {
                 return ['test' => 'datetime'];
             }
@@ -182,6 +182,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertSame(['test' => ['date']], $mock::rules());
     }
+    
 
     public function test_it_can_cast_enums(): void
     {
@@ -191,7 +192,7 @@ class DataTransferObjectTest extends TestCase
             {
             }
 
-            public static function propertyCasts(): ?array
+            public static function casts(): ?array
             {
                 return ['testEnum' => TestEnum::class];
             }
@@ -221,7 +222,7 @@ class DataTransferObjectTest extends TestCase
             {
             }
 
-            public static function propertyCasts(): ?array
+            public static function casts(): ?array
             {
                 return ['test_cast' => static::$className];
             }
@@ -243,6 +244,55 @@ class DataTransferObjectTest extends TestCase
         );
     }
 
+    public function test_it_can_cast_to_dto_array(): void
+    {
+        $mock_a = new class('') extends DataTransferObject
+        {
+            public function __construct(public readonly string $test)
+            {
+            }
+
+            public static function rules(): array {
+                return [
+                    'test' => ['min:1'],
+                ];
+            }
+        };
+
+        $mock_b = new class('') extends DataTransferObject
+        {
+            public static string $className = '';
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function casts(): ?array
+            {
+                return ['test_cast' => static::$className . '[]'];
+            }
+        };
+
+        $mock_b::$className = get_class($mock_a);
+
+        $dto = $mock_b::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
+
+        $this->assertIsArray($dto->test_cast);
+        $this->assertCount(2, $dto->test_cast);
+        $this->assertInstanceOf(DataTransferObject::class, $dto->test_cast[0]);
+        $this->assertInstanceOf(DataTransferObject::class, $dto->test_cast[1]);
+        $this->assertSame(
+            [
+                'test_cast' => [
+                    'array',
+                ],
+                'test_cast.*' => ['array'],
+                'test_cast.*.test' => ['min:1'],
+                'className' => [],
+            ],
+            $dto->rules()
+        );
+    }
+
 
     public function test_it_can_cast_to_empty_dto(): void
     {
@@ -260,7 +310,7 @@ class DataTransferObjectTest extends TestCase
             {
             }
 
-            public static function propertyCasts(): ?array
+            public static function casts(): ?array
             {
                 return ['test_cast' => static::$className];
             }
@@ -296,7 +346,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $result = $mock->mapToDtoArray([['test' => 'A'], ['test' => 'B']]);
+        $result = $mock::mapToDtoArray([['test' => 'A'], ['test' => 'B']]);
 
         $this->assertCount(2, $result);
         $this->assertIsObject($result[0]);
@@ -309,7 +359,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $result = $mock->mapToDtoArray(
+        $result = $mock::mapToDtoArray(
             ['data' => [['test' => 'A'], ['test' => 'B']]],
             'data'
         );
