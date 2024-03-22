@@ -89,6 +89,30 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return static::appendRules($rules, $key.'.*');
     }
 
+    protected static function applyCastRules(array $rules, string $field, mixed $cast): array
+    {
+        switch (true) {
+            case substr($cast, -2) === '[]':
+                $cast = substr($cast, 0, -2);
+                $rules[$field][] = 'array';
+                $rules = static::applyCastRules($rules, $field.'.*', $cast);
+                break;
+            case $cast === 'datetime':
+                $rules[$field][] = 'date';
+                break;
+            case is_a($cast, DataTransferObject::class, true):
+                $rules = $cast::appendRules($rules, $field);
+
+                break;
+            case is_a($cast, BackedEnum::class, true):
+                $rules[$field][] = Rule::in(array_column($cast::cases(), 'value'));
+
+                break;
+        }
+
+        return $rules;
+    }
+
     public static function castRules(): array
     {
         $casts = static::casts() ?? [];
@@ -100,24 +124,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
             if (! in_array($field, ['resourceCollectionClass'])) {
                 $rules[$field] = [];
                 if ($cast = isset($casts[$field]) ? $casts[$field] : null) {
-                    switch (true) {
-                        case substr($cast, -2) === '[]':
-                            $dtoClass = substr($cast, 0, -2);
-                            $rules = $dtoClass::appendArrayElementRules($rules, $field);
-                            break;
-                        case is_a($cast, DataTransferObject::class, true):
-                            $rules = $cast::appendRules($rules, $field);
-
-                            break;
-                        case $cast === 'datetime':
-                            $rules[$field][] = 'date';
-                            break;
-                        case enum_exists($cast) && method_exists($cast, 'from'):
-                            $rules[$field][] = 'string';
-                            $rules[$field][] = Rule::in(array_column($cast::cases(), 'value'));
-
-                            break;
-                    }
+                    $rules = static::applyCastRules($rules, $field, $cast);
                 }
             }
         }
@@ -149,34 +156,35 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return static::makeFromArray($model->toArray());
     }
 
+    protected static function applyCast(mixed $data, string $cast): mixed
+    {
+        switch (true) {
+            case substr($cast, -2) === '[]' && is_array($data):
+                return array_map(
+                    fn (mixed $element) => static::applyCast($element, substr($cast, 0, -2)),
+                    $data
+                );
+            case $cast === 'datetime':
+                return ! empty($data)
+                    ? Carbon::parse($data)
+                    : null;
+            case is_a($cast, DataTransferObject::class, true):
+                return ! is_null($data) && is_array($data)
+                    ? $cast::makeFromArray($data)
+                    : null;
+            case is_a($cast, BackedEnum::class, true):
+                return $cast::from($data);
+        }
+
+        return $data;
+    }
+
     public static function makeFromArray(array $data): static
     {
         if ($casts = static::casts()) {
             foreach ($casts as $field => $cast) {
                 if (array_key_exists($field, $data)) {
-                    switch (true) {
-                        case substr($cast, -2) === '[]':
-                            if (is_array($data[$field])) {
-                                $dto = substr($cast, 0, -2);
-
-                                $data[$field] = $dto::mapToDtoArray($data, $field);
-                            }
-
-                            break;
-                        case $cast === 'datetime':
-                            $data[$field] = ! empty($data[$field])
-                                ? Carbon::parse($data[$field])
-                                : null;
-                            break;
-                        case is_a($cast, DataTransferObject::class, true):
-                            $data[$field] = ! is_null($data[$field]) && is_array($data[$field])
-                                ? $cast::makeFromArray($data[$field])
-                                : null;
-                            break;
-                        case enum_exists($cast) && method_exists($cast, 'from'):
-                            $data[$field] = $cast::from($data[$field]);
-                            break;
-                    }
+                    $data[$field] = static::applyCast($data[$field], $cast);
                 }
             }
         }

@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use stdClass;
@@ -92,7 +93,6 @@ class DataTransferObjectTest extends TestCase
         /* GET */
         $this->assertInstanceOf(get_class($mock), $cast->get($model, 'data', '{"test":"Test1234"}', []));
     }
-
 
     public function test_it_castable_getter_throws_on_invalid_values(): void
     {
@@ -182,7 +182,6 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertSame(['test' => ['date']], $mock::rules());
     }
-    
 
     public function test_it_can_cast_enums(): void
     {
@@ -203,7 +202,39 @@ class DataTransferObjectTest extends TestCase
         $this->assertInstanceOf(TestEnum::class, $dto->testEnum);
         $this->assertSame(TestEnum::B, $dto->testEnum);
         $this->assertSame(['testEnum' => 'B'], $dto->toArray());
-        $this->assertCount(2, $mock::rules()['testEnum']);
+        $this->assertCount(1, $mock::rules()['testEnum']);
+        $this->assertInstanceOf(In::class, $mock::rules()['testEnum'][0]);
+        $this->assertSame('in:"A","B"', $mock::rules()['testEnum'][0]->__toString());
+    }
+
+    public function test_it_can_cast_to_an_enum_array(): void
+    {
+        $mock = new class('') extends DataTransferObject
+        {
+            public static string $className = '';
+
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function casts(): ?array
+            {
+                return ['test_cast' => TestEnum::class.'[]'];
+            }
+        };
+
+        $dto = $mock::makeFromArray(['test_cast' => ['A', 'B']]);
+
+        $this->assertIsArray($dto->test_cast);
+        $this->assertCount(2, $dto->test_cast);
+        $this->assertSame(TestEnum::A, $dto->test_cast[0]);
+        $this->assertSame(TestEnum::B, $dto->test_cast[1]);
+
+        $rules = $mock::rules();
+        $this->assertArrayHasKey('test_cast', $rules);
+        $this->assertArrayHasKey('test_cast.*', $rules);
+        $this->assertSame(['array'], $rules['test_cast']);
+        $this->assertCount(1, $rules['test_cast.*']);
     }
 
     public function test_it_can_cast_to_dto(): void
@@ -218,13 +249,14 @@ class DataTransferObjectTest extends TestCase
         $mock_b = new class('') extends DataTransferObject
         {
             public static string $className = '';
+
             public function __construct(public readonly mixed $test_cast)
             {
             }
 
             public static function casts(): ?array
             {
-                return ['test_cast' => static::$className];
+                return ['test_cast' => self::$className];
             }
         };
 
@@ -252,7 +284,8 @@ class DataTransferObjectTest extends TestCase
             {
             }
 
-            public static function rules(): array {
+            public static function rules(): array
+            {
                 return [
                     'test' => ['min:1'],
                 ];
@@ -262,13 +295,14 @@ class DataTransferObjectTest extends TestCase
         $mock_b = new class('') extends DataTransferObject
         {
             public static string $className = '';
+
             public function __construct(public readonly mixed $test_cast)
             {
             }
 
             public static function casts(): ?array
             {
-                return ['test_cast' => static::$className . '[]'];
+                return ['test_cast' => self::$className.'[]'];
             }
         };
 
@@ -293,7 +327,6 @@ class DataTransferObjectTest extends TestCase
         );
     }
 
-
     public function test_it_can_cast_to_empty_dto(): void
     {
         $mock_a = new class('') extends DataTransferObject
@@ -306,13 +339,14 @@ class DataTransferObjectTest extends TestCase
         $mock_b = new class('') extends DataTransferObject
         {
             public static string $className = '';
+
             public function __construct(public readonly mixed $test_cast)
             {
             }
 
             public static function casts(): ?array
             {
-                return ['test_cast' => static::$className];
+                return ['test_cast' => self::$className];
             }
         };
 
@@ -333,7 +367,7 @@ class DataTransferObjectTest extends TestCase
 
             public static function rules(): ?array
             {
-                return ['test' => ['min:15']    ];
+                return ['test' => ['min:15']];
             }
         };
 
