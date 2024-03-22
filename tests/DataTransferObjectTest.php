@@ -207,6 +207,25 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame('in:"A","B"', $mock::rules()['testEnum'][0]->__toString());
     }
 
+    public function test_it_works_with_already_casted_enum(): void
+    {
+        $mock = new class(TestEnum::A) extends DataTransferObject
+        {
+            public function __construct(public readonly TestEnum $testEnum)
+            {
+            }
+
+            public static function casts(): ?array
+            {
+                return ['testEnum' => TestEnum::class];
+            }
+        };
+
+        $dto = $mock::makeFromArray(['testEnum' => TestEnum::B]);
+
+        $this->assertSame(TestEnum::B, $dto->testEnum);
+    }
+
     public function test_it_can_cast_to_an_enum_array(): void
     {
         $mock = new class('') extends DataTransferObject
@@ -274,6 +293,36 @@ class DataTransferObjectTest extends TestCase
             ],
             $mock_b::rules()
         );
+    }
+
+    public function test_it_works_with_already_casted_dto(): void
+    {
+        $mock_a = new class('') extends DataTransferObject
+        {
+            public function __construct(public readonly string $test)
+            {
+            }
+        };
+
+        $mock_b = new class('') extends DataTransferObject
+        {
+            public static string $className = '';
+
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function casts(): ?array
+            {
+                return ['test_cast' => self::$className];
+            }
+        };
+
+        $mock_b::$className = get_class($mock_a);
+
+        $dto = $mock_b::makeFromArray(['test_cast' => new $mock_a('A')]);
+
+        $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArray());
     }
 
     public function test_it_can_cast_to_dto_array(): void

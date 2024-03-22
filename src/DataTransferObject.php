@@ -176,10 +176,18 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
                     ? Carbon::parse($data)
                     : null;
             case is_a($cast, DataTransferObject::class, true):
+                if ($data instanceof $cast) {
+                    return $data;
+                }
+
                 return ! is_null($data) && is_array($data)
                     ? $cast::makeFromArray($data)
                     : null;
             case is_a($cast, BackedEnum::class, true):
+                if ($data instanceof $cast) {
+                    return $data;
+                }
+
                 return $cast::from($data);
         }
 
