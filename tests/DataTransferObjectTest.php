@@ -29,6 +29,11 @@ class DataTransferObjectTest extends TestCase
             public function __construct(public readonly string $test)
             {
             }
+
+            public static function rules(): array
+            {
+                return ['test' => ['string']];
+            }
         };
     }
 
@@ -258,12 +263,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_dto(): void
     {
-        $mock_a = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test)
-            {
-            }
-        };
+        $mock_a = $this->prepareSimpleDtoObject();
 
         $mock_b = new class('') extends DataTransferObject
         {
@@ -288,8 +288,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(
             [
                 'test_cast' => ['array'],
-                'test_cast.test' => [],
-                'className' => [], /* Needed to allow injection of anonymous class name for the test */
+                'test_cast.test' => ['string'],
             ],
             $mock_b::rules()
         );
@@ -297,12 +296,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_works_with_already_casted_dto(): void
     {
-        $mock_a = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test)
-            {
-            }
-        };
+        $mock_a = $this->prepareSimpleDtoObject('');
 
         $mock_b = new class('') extends DataTransferObject
         {
@@ -370,7 +364,6 @@ class DataTransferObjectTest extends TestCase
                 ],
                 'test_cast.*' => ['array'],
                 'test_cast.*.test' => ['min:1'],
-                'className' => [],
             ],
             $dto->rules()
         );

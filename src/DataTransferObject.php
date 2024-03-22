@@ -117,17 +117,12 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
     public static function castRules(): array
     {
         $casts = static::casts() ?? [];
-        $fields = get_class_vars(static::class);
 
         $rules = [];
 
-        foreach ($fields as $field => $default) {
-            if (! in_array($field, ['resourceCollectionClass'])) {
-                $rules[$field] = [];
-                if ($cast = isset($casts[$field]) ? $casts[$field] : null) {
-                    $rules = static::applyCastRules($rules, $field, $cast);
-                }
-            }
+        foreach ($casts as $field => $cast) {
+            $rules[$field] = [];
+            $rules = static::applyCastRules($rules, $field, $cast);
         }
 
         return $rules;
@@ -135,9 +130,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function rules(): ?array
     {
-        $rules = static::castRules();
-
-        return $rules;
+        return [];
     }
 
     public static function validate(array $data): array
