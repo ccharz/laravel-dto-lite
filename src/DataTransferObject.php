@@ -130,7 +130,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function rules(): ?array
     {
-        return [];
+        return static::castRules();
     }
 
     public static function validate(array $data): array
