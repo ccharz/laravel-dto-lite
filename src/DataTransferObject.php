@@ -3,6 +3,7 @@
 namespace Ccharz\DtoLite;
 
 use BackedEnum;
+use Exception;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
@@ -144,9 +145,15 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return Validator::make($data, static::rules() ?? [])->validated();
     }
 
+    protected static function makeFromRequestArray(Request $request, array $validated_data): static
+    {
+        return static::makeFromArray($validated_data);
+    }
+
     public static function makeFromRequest(Request $request): static
     {
-        return static::makeFromArray(
+        return static::makeFromRequestArray(
+            $request,
             static::validate($request->all())
         );
     }
@@ -176,7 +183,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
                 return $cast::from($data);
         }
 
-        return $data;
+        throw new Exception('Unknown cast "'.$cast.'"');
     }
 
     public static function makeFromArray(array $data): static

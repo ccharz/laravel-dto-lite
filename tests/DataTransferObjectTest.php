@@ -357,6 +357,25 @@ class DataTransferObjectTest extends TestCase
         $this->assertNull($dto->test_cast);
     }
 
+    public function test_it_throws_an_exception_with_an_unknown_cast(): void
+    {
+        $mock = new class('') extends DataTransferObject
+        {
+            public function __construct(public readonly mixed $test_cast)
+            {
+            }
+
+            public static function casts(): ?array
+            {
+                return ['test_cast' => 'test1234'];
+            }
+        };
+
+        $this->expectExceptionMessage('Unknown cast "test1234"');
+
+        $mock::makeFromArray(['test_cast' => []]);
+    }
+
     public function test_it_can_manipulate_rules(): void
     {
         $mock = new class('') extends DataTransferObject
