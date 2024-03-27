@@ -133,17 +133,17 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return static::castRules();
     }
 
-    public static function afterValidation(Request $request): array
+    public static function afterValidation(?Request $request = null): array
     {
         return [];
     }
 
-    protected static function makeFromRequestArray(Request $request, array $validated_data): static
+    protected static function makeFromRequestArray( array $validated_data, ?Request $request = null): static
     {
         return static::makeFromArray($validated_data);
     }
 
-    public static function validate(Request $request, array $data): array
+    public static function validate(array $data, ?Request $request = null): array
     {
         return Validator::make($data, static::rules() ?? [])
             ->after(static::afterValidation($request))
@@ -153,8 +153,8 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
     public static function makeFromRequest(Request $request): static
     {
         return static::makeFromRequestArray(
-            $request,
-            static::validate($request, $request->all())
+            static::validate($request->all(), $request),
+            $request
         );
     }
 
