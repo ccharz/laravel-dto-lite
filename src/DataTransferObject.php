@@ -266,7 +266,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         $output = [];
 
         foreach ($array_map as $array_element) {
-            $output[] = static::makeFromArray($array_element);
+            $output[] = static::make($array_element);
         }
 
         return $output;
