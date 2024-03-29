@@ -23,6 +23,50 @@ class ContactData extends DataTransferObject {
 }
 ```
 
+### Casts
+
+Casts for attributes can be defined similar to eloquent casts. It is also possible to define casts to an array
+
+```php
+enum ContactType : string {
+    case PERSON = 'person';
+    case COMPANY = 'company';
+}
+
+class AddressData extends DataTransferObject
+{
+    public function __construct(
+        public readonly ?string $country = null,
+        public readonly ?string $zip = null,
+        public readonly ?string $location = null,
+        public readonly ?string $street = null,
+        public readonly ?string $streetnumber = null,
+        public readonly ?string $stair = null,
+        public readonly ?string $top = null,
+    ) {
+    }
+}
+
+class ContactData extends DataTransferObject {
+    public function __construct(
+        /** @var AddressData[] $addresses */
+        public readonly array $addresses,
+        public readonly DateTime $birthday,
+        public readonly ContactType $type,
+    ) {}
+
+    public static function casts(): array
+    {
+        return [
+            'addresses' => AddressData::class . '[]',
+            'birthday' => 'datetime',
+            'type' =>  ContactType::class,
+        ];
+    }
+}
+
+```
+
 ### Validation
 
 If a rules method exists, validation is automatically performed when creating a DTO from a request manually or by automatic dependency injection.
@@ -32,6 +76,18 @@ If a rules method exists, validation is automatically performed when creating a 
 public static function rules(): ?array
 {
     return ['prename' => 'min:2'];
+}
+```
+
+You can also inject the rules from casts in your rules:
+
+
+```php
+public static function rules(): ?array
+{
+    return [
+        ...parent::castRules(),
+    ];
 }
 ```
 
@@ -49,6 +105,62 @@ public function store(ContactData $contactData): RedirectResponse
 
     return redirect()->back();
 }
+```
+
+### Eloquent Castable
+
+DataTransferObjects can be used as a cast in eloquent models
+
+```php
+class Contact extends Model
+{
+    protected $casts = [
+        'address' => AddressData::class,
+    ];
+}
+```
+
+### Response
+
+Data Transfer Objects are automatically converted to an response if returned from a controller
+
+```php
+class ContactController extends Controller {
+    public function show(Contact $contact): ContactData
+    {
+        return ContactData::make($contact);
+    }
+}
+```
+
+You can also return a [resource collection](https://laravel.com/docs/11.x/eloquent-resources#resource-collections) of data transfer objects
+
+```php
+class ContactController extends Controller {
+    public function index()
+    {
+        return ContactData::resourceCollection(Contact::paginate());
+    }
+}
+```
+
+### Map to DTO Array
+
+An array can automatically be mapped to an array of the DTO:
+
+```php
+$addresses = [
+    [
+        'country' => 'AT',
+        'zip' => '8010',
+    ],
+    [
+        'country' => 'AT',
+        'zip' => '8010',
+    ]
+];
+
+AddressData::mapToDtoArray($addresses);
 ```
 
 

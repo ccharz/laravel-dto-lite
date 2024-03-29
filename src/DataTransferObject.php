@@ -208,21 +208,6 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return new static(...$data);
     }
 
-    /**
-     * @param  array<int,mixed>  $array_map
-     */
-    public static function mapToDtoArray(array $array_map = [], ?string $key = null): array
-    {
-        if ($key) {
-            $array_map = isset($array_map[$key]) ? $array_map[$key] : [];
-        }
-
-        return array_map(
-            fn (array $array_element) => static::make($array_element),
-            $array_map
-        );
-    }
-
     public static function makeFromJson(?string $json, int $options = 0): static
     {
         $json = $json ? json_decode($json, true, 512, $options) : [];
@@ -270,5 +255,20 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
             DataTransferObjectJsonResource::class,
             static::class
         );
+    }
+
+    public static function mapToDtoArray(iterable $array_map = [], ?string $key = null): array
+    {
+        if ($key) {
+            $array_map = isset($array_map[$key]) ? $array_map[$key] : [];
+        }
+
+        $output = [];
+
+        foreach ($array_map as $array_element) {
+            $output[] = static::makeFromArray($array_element);
+        }
+
+        return $output;
     }
 }
