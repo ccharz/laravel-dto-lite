@@ -188,7 +188,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
                     return $data;
                 }
 
-                return $cast::from($data);
+                return $cast::tryFrom($data);
         }
 
         throw new Exception('Unknown cast "'.$cast.'"');
