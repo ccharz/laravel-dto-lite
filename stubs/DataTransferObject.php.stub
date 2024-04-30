@@ -1,0 +1,32 @@
+<?php
+
+namespace {{ NAMESPACE }};
+
+use Ccharz\DtoLite\DataTransferObject;
+use Illuminate\Database\Eloquent\Model;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
+
+#[TypeScript]
+class {{ CLASS }} extends DataTransferObject
+{
+    public function __construct(
+        public readonly ?string $id,
+        {{ VARIABLES }}
+    ) {
+    }
+
+    /**
+     * @param  {{ MODEL }}  $model
+     */
+    public static function makeFromModel(Model $model): static
+    {
+        return new static(
+            $model->id,
+        );
+    }
+
+    public static function rules(): array
+    {
+        return [];
+    }
+}

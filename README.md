@@ -204,3 +204,11 @@ declare namespace App.Data {
     };
 }
 ```
+
+## Artisan Command
+
+To create a new data transfer object, use the make:dto Artisan command:
+
+```
+php artisan make:dto Address
+```

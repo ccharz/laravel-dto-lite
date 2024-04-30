@@ -5,11 +5,11 @@ namespace Ccharz\DtoLite\Tests;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use stdClass;
@@ -208,8 +208,8 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(TestEnum::B, $dto->testEnum);
         $this->assertSame(['testEnum' => 'B'], $dto->toArray());
         $this->assertCount(1, $mock::rules()['testEnum']);
-        $this->assertInstanceOf(In::class, $mock::rules()['testEnum'][0]);
-        $this->assertSame('in:"A","B"', $mock::rules()['testEnum'][0]->__toString());
+        $this->assertInstanceOf(\Illuminate\Validation\Rules\Enum::class, $mock::rules()['testEnum'][0]);
+        $this->assertTrue($mock::rules()['testEnum'][0]->passes('testEnum', 'B'));
     }
 
     public function test_it_works_with_already_casted_enum(): void
@@ -518,5 +518,16 @@ class DataTransferObjectTest extends TestCase
         $collection = $mock::resourceCollection([['test' => '1234']]);
 
         $this->assertSame('{"data":[{"test":"1234"}]}', $collection->toResponse(request())->getContent());
+    }
+
+    public function test_it_can_generate_a_new_data_transfer_object(): void
+    {
+        $this->artisan('make:dto Test')->assertSuccessful();
+
+        $filesystem = app(Filesystem::class);
+
+        $this->assertTrue($filesystem->exists(base_path('app/Data/TestData.php')));
+
+        $filesystem->deleteDirectory(base_path('app/Data'));
     }
 }

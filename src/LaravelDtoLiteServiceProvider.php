@@ -16,4 +16,16 @@ class LaravelDtoLiteServiceProvider extends ServiceProvider
             $app->bind($class, fn ($container) => $class::make(isset($container['request']) ? $container['request'] : []));
         });
     }
+
+    /**
+     * Bootstrap any package services.
+     */
+    public function boot(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                CreateDataTransferObjectCommand::class,
+            ]);
+        }
+    }
 }

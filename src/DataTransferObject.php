@@ -106,7 +106,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
                 break;
             case is_a($cast, BackedEnum::class, true):
-                $rules[$field][] = Rule::in(array_column($cast::cases(), 'value'));
+                $rules[$field][] = Rule::enum($cast);
 
                 break;
         }
@@ -138,7 +138,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return [];
     }
 
-    protected static function makeFromRequestArray( array $validated_data, ?Request $request = null): static
+    protected static function makeFromRequestArray(array $validated_data, ?Request $request = null): static
     {
         return static::makeFromArray($validated_data);
     }
