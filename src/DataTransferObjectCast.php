@@ -11,8 +11,7 @@ class DataTransferObjectCast implements CastsAttributes
     public function __construct(
         protected string $class,
         protected array $parameters = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Cast the given value.
@@ -21,7 +20,11 @@ class DataTransferObjectCast implements CastsAttributes
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
-        if (! is_string($value) && is_null($value)) {
+        if (is_null($value)) {
+            if (in_array('nullable', $this->parameters)) {
+                return null;
+            }
+
             throw new \InvalidArgumentException($key.' is not a string');
         }
 

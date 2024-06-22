@@ -4,6 +4,12 @@ This is a basic implementation of the data transfer object (DTO) concept. The id
 
 This package is similar to the [Laravel Data](https://spatie.be/docs/laravel-data) Package from Spatie. The main difference it contains no reflection class magic and only provides the basic functionalities.
 
+## Installation
+
+```bash
+composer require ccharz/laravel-dto-lite
+```
+
 ## Usage
 
 
@@ -120,6 +126,17 @@ class Contact extends Model
 }
 ```
 
+If the column is nullable, you have to append the cast parameter "nullable":
+
+```php
+class Contact extends Model
+{
+    protected $casts = [
+        'address' => AddressData::class . ':nullable',
+    ];
+}
+```
+
 ### Response
 
 Data Transfer Objects are automatically converted to an response if returned from a controller
@@ -209,6 +226,6 @@ declare namespace App.Data {
 
 To create a new data transfer object, use the make:dto Artisan command:
 
-```
+```bash
 php artisan make:dto Address
 ```

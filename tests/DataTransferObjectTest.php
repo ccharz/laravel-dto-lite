@@ -22,13 +22,11 @@ enum TestEnum: string
 
 class DataTransferObjectTest extends TestCase
 {
-    private function prepareSimpleDtoObject(string $value = 'test')
+    private function prepareSimpleDtoObject(string $value = 'test'): object
     {
         return new class($value) extends DataTransferObject
         {
-            public function __construct(public readonly string $test)
-            {
-            }
+            public function __construct(public readonly string $test) {}
 
             public static function rules(): array
             {
@@ -99,6 +97,17 @@ class DataTransferObjectTest extends TestCase
         $this->assertInstanceOf(get_class($mock), $cast->get($model, 'data', '{"test":"Test1234"}', []));
     }
 
+    public function test_it_is_castable_with_null_if_nullable(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+        $model = $this->prepareSimpleModel();
+
+        $cast = new DataTransferObjectCast(get_class($mock), ['nullable']);
+
+        /* GET */
+        $this->assertSame(null, $cast->get($model, 'data', null, []));
+    }
+
     public function test_it_castable_getter_throws_on_invalid_values(): void
     {
         $mock = $this->prepareSimpleDtoObject();
@@ -146,9 +155,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class('') extends DataTransferObject
         {
-            public function __construct(public readonly string $test)
-            {
-            }
+            public function __construct(public readonly string $test) {}
 
             public static function rules(): ?array
             {
@@ -167,9 +174,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class(Carbon::parse('01.01.2022')) extends DataTransferObject
         {
-            public function __construct(public readonly ?Carbon $test)
-            {
-            }
+            public function __construct(public readonly ?Carbon $test) {}
 
             public static function casts(): ?array
             {
@@ -192,9 +197,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class(TestEnum::A) extends DataTransferObject
         {
-            public function __construct(public readonly TestEnum $testEnum)
-            {
-            }
+            public function __construct(public readonly TestEnum $testEnum) {}
 
             public static function casts(): ?array
             {
@@ -216,9 +219,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class(TestEnum::A) extends DataTransferObject
         {
-            public function __construct(public readonly TestEnum $testEnum)
-            {
-            }
+            public function __construct(public readonly TestEnum $testEnum) {}
 
             public static function casts(): ?array
             {
@@ -237,9 +238,7 @@ class DataTransferObjectTest extends TestCase
         {
             public static string $className = '';
 
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -269,9 +268,7 @@ class DataTransferObjectTest extends TestCase
         {
             public static string $className = '';
 
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -302,9 +299,7 @@ class DataTransferObjectTest extends TestCase
         {
             public static string $className = '';
 
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -323,9 +318,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock_a = new class('') extends DataTransferObject
         {
-            public function __construct(public readonly string $test)
-            {
-            }
+            public function __construct(public readonly string $test) {}
 
             public static function rules(): array
             {
@@ -339,9 +332,7 @@ class DataTransferObjectTest extends TestCase
         {
             public static string $className = '';
 
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -373,18 +364,14 @@ class DataTransferObjectTest extends TestCase
     {
         $mock_a = new class('') extends DataTransferObject
         {
-            public function __construct(public readonly string $test)
-            {
-            }
+            public function __construct(public readonly string $test) {}
         };
 
         $mock_b = new class('') extends DataTransferObject
         {
             public static string $className = '';
 
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -403,9 +390,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class('') extends DataTransferObject
         {
-            public function __construct(public readonly mixed $test_cast)
-            {
-            }
+            public function __construct(public readonly mixed $test_cast) {}
 
             public static function casts(): ?array
             {
@@ -422,9 +407,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new class('') extends DataTransferObject
         {
-            public function __construct(public readonly string $test)
-            {
-            }
+            public function __construct(public readonly string $test) {}
 
             public static function rules(): ?array
             {
