@@ -128,7 +128,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
         return $rules;
     }
 
-    public static function rules(): ?array
+    public static function rules(?Request $request = null): ?array
     {
         return static::castRules();
     }
@@ -145,7 +145,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function validate(array $data, ?Request $request = null): array
     {
-        return Validator::make($data, static::rules() ?? [])
+        return Validator::make($data, static::rules($request) ?? [])
             ->after(static::afterValidation($request))
             ->validated();
     }

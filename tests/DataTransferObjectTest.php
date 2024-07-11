@@ -28,7 +28,7 @@ class DataTransferObjectTest extends TestCase
         {
             public function __construct(public readonly string $test) {}
 
-            public static function rules(): array
+            public static function rules(?Request $request = null): array
             {
                 return ['test' => ['string']];
             }
@@ -157,7 +157,7 @@ class DataTransferObjectTest extends TestCase
         {
             public function __construct(public readonly string $test) {}
 
-            public static function rules(): ?array
+            public static function rules(?Request $request = null): ?array
             {
                 return ['test' => 'min:15'];
             }
@@ -320,7 +320,7 @@ class DataTransferObjectTest extends TestCase
         {
             public function __construct(public readonly string $test) {}
 
-            public static function rules(): array
+            public static function rules(?Request $request = null): array
             {
                 return [
                     'test' => ['min:1'],
@@ -409,7 +409,7 @@ class DataTransferObjectTest extends TestCase
         {
             public function __construct(public readonly string $test) {}
 
-            public static function rules(): ?array
+            public static function rules(?Request $request = null): ?array
             {
                 return ['test' => ['min:15']];
             }

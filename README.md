@@ -79,7 +79,9 @@ If a rules method exists, validation is automatically performed when creating a 
 
 
 ```php
-public static function rules(): ?array
+use Illuminate\Http\Request;
+
+public static function rules(?Request $request = null): ?array
 {
     return ['prename' => 'min:2'];
 }
@@ -89,7 +91,9 @@ You can also inject the rules from casts in your rules:
 
 
 ```php
-public static function rules(): ?array
+use Illuminate\Http\Request;
+
+public static function rules(?Request $request = null): ?array
 {
     return [
         ...parent::castRules(),
