@@ -2,6 +2,7 @@
 
 namespace Ccharz\DtoLite;
 
+use InvalidArgumentException;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +26,7 @@ class DataTransferObjectCast implements CastsAttributes
                 return null;
             }
 
-            throw new \InvalidArgumentException($key.' is not a string');
+            throw new InvalidArgumentException($key.' is not a string');
         }
 
         return $this->class::make($value);
@@ -47,7 +48,7 @@ class DataTransferObjectCast implements CastsAttributes
         }
 
         if (! $value instanceof Jsonable) {
-            throw new \InvalidArgumentException("Value must be of type [$this->class], array, or null");
+            throw new InvalidArgumentException("Value must be of type [$this->class], array, or null");
         }
 
         return $value->toJson();

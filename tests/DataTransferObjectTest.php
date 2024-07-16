@@ -2,6 +2,7 @@
 
 namespace Ccharz\DtoLite\Tests;
 
+use Illuminate\Validation\Rules\Enum;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
@@ -149,14 +150,14 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         /* SET */
         $this->assertSame('{"test":"Test1234"}', $cast->set($model, 'data', ['test' => 'Test1234'], []));
         $this->assertNull($cast->set($model, 'data', null, []));
 
         /* GET */
-        $this->assertInstanceOf(get_class($mock), $cast->get($model, 'data', '{"test":"Test1234"}', []));
+        $this->assertInstanceOf($mock::class, $cast->get($model, 'data', '{"test":"Test1234"}', []));
     }
 
     public function test_it_is_castable_with_null_if_nullable(): void
@@ -164,7 +165,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), ['nullable']);
+        $cast = new DataTransferObjectCast($mock::class, ['nullable']);
 
         /* GET */
         $this->assertSame(null, $cast->get($model, 'data', null, []));
@@ -175,7 +176,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         $this->expectExceptionMessage('data is not a string');
         $cast->get($model, 'data', null, []);
@@ -186,7 +187,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         $this->expectException(InvalidArgumentException::class);
         $cast->set($model, 'data', 'test1234', []);
@@ -249,7 +250,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(TestEnum::B, $dto->testEnum);
         $this->assertSame(['testEnum' => 'B'], $dto->toArray());
         $this->assertCount(1, $mock::rules()['testEnum']);
-        $this->assertInstanceOf(\Illuminate\Validation\Rules\Enum::class, $mock::rules()['testEnum'][0]);
+        $this->assertInstanceOf(Enum::class, $mock::rules()['testEnum'][0]);
         $this->assertTrue($mock::rules()['testEnum'][0]->passes('testEnum', 'B'));
     }
 
@@ -393,12 +394,12 @@ class DataTransferObjectTest extends TestCase
 
         app(Request::class)->merge(['test' => 'TestStringWithOverFifteenCharacters']);
 
-        $newMock = app(get_class($mock));
+        $newMock = app($mock::class);
 
-        $this->assertSame(get_class($mock), get_class($newMock));
+        $this->assertSame($mock::class, $newMock::class);
         $this->assertSame('TestStringWithOverFifteenCharacters', $newMock->test);
 
-        $this->assertSame('TestStringWithOverFifteenCharacters', app(get_class($mock))->test);
+        $this->assertSame('TestStringWithOverFifteenCharacters', app($mock::class)->test);
     }
 
     public function test_to_response_method(): void

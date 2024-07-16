@@ -8,12 +8,12 @@ class LaravelDtoLiteServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->beforeResolving(DataTransferObject::class, function ($class, $parameters, $app) {
+        $this->app->beforeResolving(DataTransferObject::class, function ($class, $parameters, $app): void {
             if ($app->has($class)) {
                 return;
             }
 
-            $app->bind($class, fn ($container) => $class::make(isset($container['request']) ? $container['request'] : []));
+            $app->bind($class, fn ($container) => $class::make($container['request'] ?? []));
         });
     }
 
