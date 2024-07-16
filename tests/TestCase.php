@@ -2,6 +2,8 @@
 
 namespace Ccharz\DtoLite\Tests;
 
+use Illuminate\Foundation\Application;
+use Illuminate\Support\ServiceProvider;
 use Ccharz\DtoLite\LaravelDtoLiteServiceProvider;
 
 class TestCase extends \Orchestra\Testbench\TestCase
@@ -9,8 +11,8 @@ class TestCase extends \Orchestra\Testbench\TestCase
     /**
      * Get package providers.
      *
-     * @param  \Illuminate\Foundation\Application  $app
-     * @return array<int, class-string<\Illuminate\Support\ServiceProvider>>
+     * @param Application $app
+     * @return array<int, class-string<ServiceProvider>>
      */
     protected function getPackageProviders($app)
     {

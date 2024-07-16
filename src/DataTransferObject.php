@@ -5,6 +5,7 @@ namespace Ccharz\DtoLite;
 use BackedEnum;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Contracts\Support\Responsable;
@@ -17,13 +18,19 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
-abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
+abstract readonly class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
 {
-    protected static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
-
-    public static function castUsing(array $arguments)
+    public static function castUsing(array $arguments) : CastsAttributes
     {
         return new DataTransferObjectCast(static::class, $arguments);
+    }
+
+    /**
+     * @return class-string
+     */
+    public static function resourceCollectionClass(): string
+    {
+        return DataTransferObjectJsonResourceCollection::class;
     }
 
     public static function casts(): ?array
@@ -43,7 +50,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
             $value instanceof Carbon => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
             is_array($value) => array_map(
-                fn ($element) => $this->simplify($element),
+                fn ($element): mixed => $this->simplify($element),
                 $value
             ),
             default => $value
@@ -73,7 +80,9 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function appendRules(array $rules, string $key): array
     {
-        if ($staticRules = static::rules()) {
+        $staticRules = static::rules();
+    
+        if ($staticRules !== null && $staticRules !== []) {
             $rules[$key][] = 'array';
             foreach ($staticRules as $field => $value) {
                 $rules[$key.'.'.$field] = $value;
@@ -93,8 +102,8 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
     protected static function applyCastRules(array $rules, string $field, mixed $cast): array
     {
         switch (true) {
-            case substr($cast, -2) === '[]':
-                $cast = substr($cast, 0, -2);
+            case str_ends_with((string) $cast, '[]'):
+                $cast = substr((string) $cast, 0, -2);
                 $rules[$field][] = 'array';
                 $rules = static::applyCastRules($rules, $field.'.*', $cast);
                 break;
@@ -165,38 +174,37 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     protected static function applyCast(mixed $data, string $cast): mixed
     {
-        switch (true) {
-            case substr($cast, -2) === '[]' && is_array($data):
-                return array_map(
-                    fn (mixed $element) => static::applyCast($element, substr($cast, 0, -2)),
-                    $data
-                );
-            case $cast === 'datetime':
-                return ! empty($data)
-                    ? Carbon::parse($data)
-                    : null;
-            case is_a($cast, DataTransferObject::class, true):
-                if ($data instanceof $cast) {
-                    return $data;
-                }
-
-                return ! is_null($data) && is_array($data)
-                    ? $cast::makeFromArray($data)
-                    : null;
-            case is_a($cast, BackedEnum::class, true):
-                if ($data instanceof $cast) {
-                    return $data;
-                }
-
-                return $cast::tryFrom($data);
+        if (str_ends_with($cast, '[]') && is_array($data)) {
+            return array_map(
+                fn (mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
+                $data
+            );
         }
-
+        if ($cast === 'datetime') {
+            return empty($data)
+                ? null
+                : Carbon::parse($data);
+        }
+        if (is_a($cast, DataTransferObject::class, true)) {
+            if ($data instanceof $cast) {
+                return $data;
+            }
+            return ! is_null($data) && is_array($data)
+                ? $cast::makeFromArray($data)
+                : null;
+        }
+        if (is_a($cast, BackedEnum::class, true)) {
+            if ($data instanceof $cast) {
+                return $data;
+            }
+            return $cast::tryFrom($data);
+        }
         throw new Exception('Unknown cast "'.$cast.'"');
     }
 
     public static function makeFromArray(array $data): static
     {
-        if ($casts = static::casts()) {
+        if (($casts = static::casts()) !== null && ($casts = static::casts()) !== []) {
             foreach ($casts as $field => $cast) {
                 if (array_key_exists($field, $data)) {
                     $data[$field] = static::applyCast($data[$field], $cast);
@@ -210,7 +218,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function makeFromJson(?string $json, int $options = 0): static
     {
-        $json = $json ? json_decode($json, true, 512, $options) : [];
+        $json = $json !== null && $json !== '' ? json_decode($json, true, 512, $options) : [];
 
         return static::makeFromArray(
             $json ?? []
@@ -235,7 +243,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
             return static::makeFromArray($data);
         }
 
-        throw new \Exception('Invalid data to make data transfer object');
+        throw new Exception('Invalid data to make data transfer object');
     }
 
     public function toResponse($request)
@@ -250,7 +258,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function resourceCollection($resource): AnonymousResourceCollection
     {
-        return new static::$resourceCollectionClass(
+        return new (static::resourceCollectionClass())(
             $resource,
             DataTransferObjectJsonResource::class,
             static::class
@@ -259,8 +267,8 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function mapToDtoArray(iterable $array_map = [], ?string $key = null): array
     {
-        if ($key) {
-            $array_map = isset($array_map[$key]) ? $array_map[$key] : [];
+        if ($key !== null) {
+            $array_map = $array_map[$key] ?? [];
         }
 
         $output = [];

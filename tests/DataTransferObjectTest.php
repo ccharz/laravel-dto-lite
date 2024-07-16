@@ -2,6 +2,7 @@
 
 namespace Ccharz\DtoLite\Tests;
 
+use Illuminate\Validation\Rules\Enum;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
@@ -20,19 +21,81 @@ enum TestEnum: string
     case B = 'B';
 }
 
+readonly class SimpleDtoObject extends DataTransferObject {
+    public function __construct(public readonly string $test) {}
+
+    public static function rules(?Request $request = null): ?array
+    {
+        return ['test' => ['min:15']];
+    }
+}
+
+readonly class SimpleDateDtoObject  extends DataTransferObject {
+    public function __construct(public readonly ?Carbon $test) {}
+
+    public static function casts(): ?array
+    {
+        return ['test' => 'datetime'];
+    }
+}
+
+
+readonly class SimpleEnumDtoObject extends DataTransferObject {
+    public function __construct(public readonly TestEnum $testEnum) {}
+
+    public static function casts(): ?array
+    {
+        return ['testEnum' => TestEnum::class];
+    }
+}
+
+readonly class SimpleEnumArrayDtoObject  extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => TestEnum::class.'[]'];
+    }
+};
+
+readonly class CastableDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => SimpleDtoObject::class];
+    }
+};
+
+readonly class CastableArrayDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => SimpleDtoObject::class . '[]'];
+    }
+};
+
+
+readonly class NonCastableAObject extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => 'test1234'];
+    }
+};
+
+
 class DataTransferObjectTest extends TestCase
 {
     private function prepareSimpleDtoObject(string $value = 'test'): object
     {
-        return new class($value) extends DataTransferObject
-        {
-            public function __construct(public readonly string $test) {}
-
-            public static function rules(?Request $request = null): array
-            {
-                return ['test' => ['string']];
-            }
-        };
+        return new SimpleDtoObject($value);
     }
 
     private function prepareSimpleModel(): Model
@@ -65,9 +128,9 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $dto = $mock::make((new Request)->merge(['test' => 'Test1234']));
+        $dto = $mock::make((new Request)->merge(['test' => 'TestStringWithOverFifteenCharacters']));
 
-        $this->assertSame('Test1234', $dto->test);
+        $this->assertSame('TestStringWithOverFifteenCharacters', $dto->test);
     }
 
     public function test_it_can_make_dto_from_eloquent_model(): void
@@ -87,14 +150,14 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         /* SET */
         $this->assertSame('{"test":"Test1234"}', $cast->set($model, 'data', ['test' => 'Test1234'], []));
         $this->assertNull($cast->set($model, 'data', null, []));
 
         /* GET */
-        $this->assertInstanceOf(get_class($mock), $cast->get($model, 'data', '{"test":"Test1234"}', []));
+        $this->assertInstanceOf($mock::class, $cast->get($model, 'data', '{"test":"Test1234"}', []));
     }
 
     public function test_it_is_castable_with_null_if_nullable(): void
@@ -102,7 +165,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), ['nullable']);
+        $cast = new DataTransferObjectCast($mock::class, ['nullable']);
 
         /* GET */
         $this->assertSame(null, $cast->get($model, 'data', null, []));
@@ -113,7 +176,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         $this->expectExceptionMessage('data is not a string');
         $cast->get($model, 'data', null, []);
@@ -124,7 +187,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast(get_class($mock), []);
+        $cast = new DataTransferObjectCast($mock::class, []);
 
         $this->expectException(InvalidArgumentException::class);
         $cast->set($model, 'data', 'test1234', []);
@@ -153,15 +216,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_validate_data(): void
     {
-        $mock = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test) {}
-
-            public static function rules(?Request $request = null): ?array
-            {
-                return ['test' => 'min:15'];
-            }
-        };
+        $mock = $this->prepareSimpleDtoObject('');
 
         $request = (new Request())->merge(['test' => 'ABC']);
 
@@ -172,15 +227,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_dates(): void
     {
-        $mock = new class(Carbon::parse('01.01.2022')) extends DataTransferObject
-        {
-            public function __construct(public readonly ?Carbon $test) {}
-
-            public static function casts(): ?array
-            {
-                return ['test' => 'datetime'];
-            }
-        };
+        $mock = new SimpleDateDtoObject(Carbon::parse('01.01.2022'));
 
         $dto = $mock::makeFromArray(['test' => '02.02.2024']);
 
@@ -195,15 +242,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_enums(): void
     {
-        $mock = new class(TestEnum::A) extends DataTransferObject
-        {
-            public function __construct(public readonly TestEnum $testEnum) {}
-
-            public static function casts(): ?array
-            {
-                return ['testEnum' => TestEnum::class];
-            }
-        };
+        $mock = new SimpleEnumDtoObject(TestEnum::A);
 
         $dto = $mock::makeFromArray(['testEnum' => 'B']);
 
@@ -211,21 +250,13 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(TestEnum::B, $dto->testEnum);
         $this->assertSame(['testEnum' => 'B'], $dto->toArray());
         $this->assertCount(1, $mock::rules()['testEnum']);
-        $this->assertInstanceOf(\Illuminate\Validation\Rules\Enum::class, $mock::rules()['testEnum'][0]);
+        $this->assertInstanceOf(Enum::class, $mock::rules()['testEnum'][0]);
         $this->assertTrue($mock::rules()['testEnum'][0]->passes('testEnum', 'B'));
     }
 
     public function test_it_works_with_already_casted_enum(): void
     {
-        $mock = new class(TestEnum::A) extends DataTransferObject
-        {
-            public function __construct(public readonly TestEnum $testEnum) {}
-
-            public static function casts(): ?array
-            {
-                return ['testEnum' => TestEnum::class];
-            }
-        };
+        $mock = new SimpleEnumDtoObject(TestEnum::A);
 
         $dto = $mock::makeFromArray(['testEnum' => TestEnum::B]);
 
@@ -234,17 +265,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_an_enum_array(): void
     {
-        $mock = new class('') extends DataTransferObject
-        {
-            public static string $className = '';
-
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => TestEnum::class.'[]'];
-            }
-        };
+        $mock = new SimpleEnumArrayDtoObject('');
 
         $dto = $mock::makeFromArray(['test_cast' => ['A', 'B']]);
 
@@ -262,21 +283,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_dto(): void
     {
-        $mock_a = $this->prepareSimpleDtoObject();
-
-        $mock_b = new class('') extends DataTransferObject
-        {
-            public static string $className = '';
-
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => self::$className];
-            }
-        };
-
-        $mock_b::$className = get_class($mock_a);
+        $mock_b = new CastableDtoObject('');
 
         $dto = $mock_b::makeFromArray(['test_cast' => ['test' => 'A']]);
 
@@ -285,7 +292,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(
             [
                 'test_cast' => ['array'],
-                'test_cast.test' => ['string'],
+                'test_cast.test' => ['min:15'],
             ],
             $mock_b::rules()
         );
@@ -295,19 +302,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock_a = $this->prepareSimpleDtoObject('');
 
-        $mock_b = new class('') extends DataTransferObject
-        {
-            public static string $className = '';
-
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => self::$className];
-            }
-        };
-
-        $mock_b::$className = get_class($mock_a);
+        $mock_b = new CastableDtoObject('');
 
         $dto = $mock_b::makeFromArray(['test_cast' => new $mock_a('A')]);
 
@@ -316,33 +311,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_dto_array(): void
     {
-        $mock_a = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test) {}
-
-            public static function rules(?Request $request = null): array
-            {
-                return [
-                    'test' => ['min:1'],
-                ];
-            }
-        };
-
-        $mock_b = new class('') extends DataTransferObject
-        {
-            public static string $className = '';
-
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => self::$className.'[]'];
-            }
-        };
-
-        $mock_b::$className = get_class($mock_a);
-
-        $dto = $mock_b::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
+       $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(2, $dto->test_cast);
@@ -354,7 +323,7 @@ class DataTransferObjectTest extends TestCase
                     'array',
                 ],
                 'test_cast.*' => ['array'],
-                'test_cast.*.test' => ['min:1'],
+                'test_cast.*.test' => ['min:15'],
             ],
             $dto->rules()
         );
@@ -362,41 +331,14 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_empty_dto(): void
     {
-        $mock_a = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test) {}
-        };
-
-        $mock_b = new class('') extends DataTransferObject
-        {
-            public static string $className = '';
-
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => self::$className];
-            }
-        };
-
-        $mock_b::$className = get_class($mock_a);
-
-        $dto = $mock_b::makeFromArray(['test_cast' => null]);
+        $dto = CastableDtoObject::makeFromArray(['test_cast' => null]);
 
         $this->assertNull($dto->test_cast);
     }
 
     public function test_it_throws_an_exception_with_an_unknown_cast(): void
     {
-        $mock = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly mixed $test_cast) {}
-
-            public static function casts(): ?array
-            {
-                return ['test_cast' => 'test1234'];
-            }
-        };
+        $mock = new NonCastableAObject('');
 
         $this->expectExceptionMessage('Unknown cast "test1234"');
 
@@ -405,15 +347,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_manipulate_rules(): void
     {
-        $mock = new class('') extends DataTransferObject
-        {
-            public function __construct(public readonly string $test) {}
-
-            public static function rules(?Request $request = null): ?array
-            {
-                return ['test' => ['min:15']];
-            }
-        };
+        $mock = $this->prepareSimpleDtoObject();
 
         $this->assertSame(['child' => ['array'], 'child.test' => ['min:15']], $mock::appendRules([], 'child'));
 
@@ -458,14 +392,14 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        app(Request::class)->merge(['test' => 'ABC']);
+        app(Request::class)->merge(['test' => 'TestStringWithOverFifteenCharacters']);
 
-        $newMock = app(get_class($mock));
+        $newMock = app($mock::class);
 
-        $this->assertSame(get_class($mock), get_class($newMock));
-        $this->assertSame('ABC', $newMock->test);
+        $this->assertSame($mock::class, $newMock::class);
+        $this->assertSame('TestStringWithOverFifteenCharacters', $newMock->test);
 
-        $this->assertSame('ABC', app(get_class($mock))->test);
+        $this->assertSame('TestStringWithOverFifteenCharacters', app($mock::class)->test);
     }
 
     public function test_to_response_method(): void
