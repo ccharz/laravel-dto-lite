@@ -5,6 +5,7 @@ namespace Ccharz\DtoLite;
 use BackedEnum;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Castable;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Contracts\Support\Responsable;
@@ -17,13 +18,19 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
-abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
+abstract readonly class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
 {
-    protected static string $resourceCollectionClass = DataTransferObjectJsonResourceCollection::class;
-
-    public static function castUsing(array $arguments)
+    public static function castUsing(array $arguments) : CastsAttributes
     {
         return new DataTransferObjectCast(static::class, $arguments);
+    }
+
+    /**
+     * @return class-string
+     */
+    public static function resourceCollectionClass(): string
+    {
+        return DataTransferObjectJsonResourceCollection::class;
     }
 
     public static function casts(): ?array
@@ -250,7 +257,7 @@ abstract class DataTransferObject implements Arrayable, Castable, Jsonable, Resp
 
     public static function resourceCollection($resource): AnonymousResourceCollection
     {
-        return new static::$resourceCollectionClass(
+        return new (static::resourceCollectionClass())(
             $resource,
             DataTransferObjectJsonResource::class,
             static::class
