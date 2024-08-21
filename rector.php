@@ -7,8 +7,8 @@ use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
     ->withPaths([
-        __DIR__ . '/src',
-        __DIR__ . '/tests',
+        __DIR__.'/src',
+        __DIR__.'/tests',
     ])
     ->withAttributesSets(symfony: true, phpunit: true)
     ->withImportNames(removeUnusedImports: true)

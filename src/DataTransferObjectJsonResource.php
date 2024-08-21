@@ -7,6 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class DataTransferObjectJsonResource extends JsonResource
 {
+    /**
+     * @return array<int|string,mixed>
+     */
     public function toDtoArray(Request $request, string $dataTransferObjectClass): array
     {
         $resource = $this->resource instanceof DataTransferObject

@@ -3,14 +3,14 @@
 namespace Ccharz\DtoLite;
 
 use Illuminate\Contracts\Support\Arrayable;
-use JsonSerializable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use JsonSerializable;
 
 class DataTransferObjectJsonResourceCollection extends AnonymousResourceCollection
 {
     /**
-     * @var class-string<DataTransferObject> $dataTransferObjectClass
+     * @param  class-string<DataTransferObject>  $dataTransferObjectClass
      */
     public function __construct(
         mixed $resource,
@@ -23,7 +23,7 @@ class DataTransferObjectJsonResourceCollection extends AnonymousResourceCollecti
     /**
      * Transform the resource into a JSON array.
      *
-     * @return array|Arrayable|JsonSerializable
+     * @return array<int|string,mixed>|Arrayable<int|string,mixed>|JsonSerializable
      */
     public function toArray(Request $request)
     {

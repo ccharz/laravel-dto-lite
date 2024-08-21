@@ -3,6 +3,10 @@
 namespace Ccharz\DtoLite;
 
 use BackedEnum;
+use Carbon\Exceptions\InvalidFormatException;
+use Carbon\Month;
+use Carbon\WeekDay;
+use DateTimeInterface;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
@@ -18,26 +22,39 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
+/**
+ * @implements Arrayable<string,mixed>
+ */
 abstract readonly class DataTransferObject implements Arrayable, Castable, Jsonable, Responsable
 {
-    public static function castUsing(array $arguments) : CastsAttributes
+    /**
+     * @param  string[]  $arguments
+     * @return CastsAttributes<DataTransferObject|null, array<string,mixed>|Jsonable|null>
+     */
+    public static function castUsing(array $arguments): CastsAttributes
     {
-        return new DataTransferObjectCast(static::class, $arguments);
+        return new DataTransferObjectCast(static::class, $arguments); // @phpstan-ignore return.type
     }
 
     /**
-     * @return class-string
+     * @return class-string<AnonymousResourceCollection>
      */
     public static function resourceCollectionClass(): string
     {
         return DataTransferObjectJsonResourceCollection::class;
     }
 
+    /**
+     * @return null|array<string,string>
+     */
     public static function casts(): ?array
     {
         return null;
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function jsonSerialize(): array
     {
         return get_object_vars($this);
@@ -59,9 +76,12 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
     public function toJson($options = 0)
     {
-        return json_encode($this->jsonSerialize(), $options);
+        return json_encode($this->jsonSerialize(), $options, JSON_THROW_ON_ERROR) ?: '{}';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         $output = get_object_vars($this);
@@ -73,15 +93,22 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return $output;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArrayWithRequest(Request $request): array
     {
         return $this->toArray();
     }
 
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
     public static function appendRules(array $rules, string $key): array
     {
         $staticRules = static::rules();
-    
+
         if ($staticRules !== null && $staticRules !== []) {
             $rules[$key][] = 'array';
             foreach ($staticRules as $field => $value) {
@@ -92,6 +119,10 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return $rules;
     }
 
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
     public static function appendArrayElementRules(array $rules, string $key): array
     {
         $rules[$key] = ['array'];
@@ -99,22 +130,26 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return static::appendRules($rules, $key.'.*');
     }
 
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
     protected static function applyCastRules(array $rules, string $field, mixed $cast): array
     {
         switch (true) {
-            case str_ends_with((string) $cast, '[]'):
-                $cast = substr((string) $cast, 0, -2);
+            case is_string($cast) && str_ends_with($cast, '[]'):
+                $cast = substr($cast, 0, -2);
                 $rules[$field][] = 'array';
                 $rules = static::applyCastRules($rules, $field.'.*', $cast);
                 break;
             case $cast === 'datetime':
                 $rules[$field][] = 'date';
                 break;
-            case is_a($cast, DataTransferObject::class, true):
+            case is_string($cast) && is_a($cast, DataTransferObject::class, true):
                 $rules = $cast::appendRules($rules, $field);
 
                 break;
-            case is_a($cast, BackedEnum::class, true):
+            case is_string($cast) && is_a($cast, BackedEnum::class, true):
                 $rules[$field][] = Rule::enum($cast);
 
                 break;
@@ -123,6 +158,9 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return $rules;
     }
 
+    /**
+     * @return array<string,array<int,mixed>>
+     */
     public static function castRules(): array
     {
         $casts = static::casts() ?? [];
@@ -137,21 +175,34 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return $rules;
     }
 
+    /**
+     * @return null|array<string,array<int,mixed>>
+     */
     public static function rules(?Request $request = null): ?array
     {
         return static::castRules();
     }
 
+    /**
+     * @return array<callable|string>
+     */
     public static function afterValidation(?Request $request = null): array
     {
         return [];
     }
 
+    /**
+     * @param  array<string|int,mixed>  $validated_data
+     */
     protected static function makeFromRequestArray(array $validated_data, ?Request $request = null): static
     {
         return static::makeFromArray($validated_data);
     }
 
+    /**
+     * @param  array<string|int,mixed>  $data
+     * @return array<string|int,mixed>
+     */
     public static function validate(array $data, ?Request $request = null): array
     {
         return Validator::make($data, static::rules($request) ?? [])
@@ -181,14 +232,16 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             );
         }
         if ($cast === 'datetime') {
-            return empty($data)
-                ? null
-                : Carbon::parse($data);
+            return $data instanceof WeekDay || $data instanceof Month || $data instanceof DateTimeInterface || is_numeric($data) || is_string($data)
+                ? Carbon::parse($data)
+                : null;
         }
+
         if (is_a($cast, DataTransferObject::class, true)) {
             if ($data instanceof $cast) {
                 return $data;
             }
+
             return ! is_null($data) && is_array($data)
                 ? $cast::makeFromArray($data)
                 : null;
@@ -197,11 +250,20 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             if ($data instanceof $cast) {
                 return $data;
             }
-            return $cast::tryFrom($data);
+
+            if (is_string($data) || is_int($data)) {
+                return $cast::tryFrom($data);
+            }
         }
         throw new Exception('Unknown cast "'.$cast.'"');
     }
 
+    /**
+     * @param  array<mixed>  $data
+     *
+     * @throws InvalidFormatException
+     * @throws Exception
+     */
     public static function makeFromArray(array $data): static
     {
         if (($casts = static::casts()) !== null && ($casts = static::casts()) !== []) {
@@ -218,10 +280,12 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
     public static function makeFromJson(?string $json, int $options = 0): static
     {
-        $json = $json !== null && $json !== '' ? json_decode($json, true, 512, $options) : [];
+        $json = $json !== null && $json !== ''
+            ? json_decode($json, true, 512, $options)
+            : [];
 
         return static::makeFromArray(
-            $json ?? []
+            is_array($json) ? $json : []
         );
     }
 
@@ -256,7 +320,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return new DataTransferObjectJsonResource($this);
     }
 
-    public static function resourceCollection($resource): AnonymousResourceCollection
+    public static function resourceCollection(mixed $resource): AnonymousResourceCollection
     {
         return new (static::resourceCollectionClass())(
             $resource,
@@ -265,10 +329,19 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         );
     }
 
-    public static function mapToDtoArray(iterable $array_map = [], ?string $key = null): array
+    /**
+     * @template T of string|int
+     *
+     * @TODO Remove phpstan-ignore
+     *
+     * @param  iterable<T,mixed>  $array_map
+     * @param  T|null  $key
+     * @return static[]
+     */
+    public static function mapToDtoArray(iterable $array_map = [], string|int|null $key = null): array
     {
         if ($key !== null) {
-            $array_map = $array_map[$key] ?? [];
+            $array_map = $array_map[$key] ?? []; // @phpstan-ignore offsetAccess.nonOffsetAccessible
         }
 
         $output = [];

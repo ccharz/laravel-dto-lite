@@ -2,13 +2,19 @@
 
 namespace Ccharz\DtoLite;
 
-use InvalidArgumentException;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 
+/**
+ * @implements CastsAttributes<DataTransferObject|null, array<string,mixed>|Jsonable|null>
+ */
 class DataTransferObjectCast implements CastsAttributes
 {
+    /**
+     * @param  string[]  $parameters
+     */
     public function __construct(
         protected string $class,
         protected array $parameters = [],

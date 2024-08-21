@@ -2,7 +2,6 @@
 
 namespace Ccharz\DtoLite\Tests;
 
-use Illuminate\Validation\Rules\Enum;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use stdClass;
@@ -21,7 +21,8 @@ enum TestEnum: string
     case B = 'B';
 }
 
-readonly class SimpleDtoObject extends DataTransferObject {
+readonly class SimpleDtoObject extends DataTransferObject
+{
     public function __construct(public readonly string $test) {}
 
     public static function rules(?Request $request = null): ?array
@@ -30,7 +31,13 @@ readonly class SimpleDtoObject extends DataTransferObject {
     }
 }
 
-readonly class SimpleDateDtoObject  extends DataTransferObject {
+readonly class NullableSimpleDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly ?string $test = null) {}
+}
+
+readonly class SimpleDateDtoObject extends DataTransferObject
+{
     public function __construct(public readonly ?Carbon $test) {}
 
     public static function casts(): ?array
@@ -39,8 +46,8 @@ readonly class SimpleDateDtoObject  extends DataTransferObject {
     }
 }
 
-
-readonly class SimpleEnumDtoObject extends DataTransferObject {
+readonly class SimpleEnumDtoObject extends DataTransferObject
+{
     public function __construct(public readonly TestEnum $testEnum) {}
 
     public static function casts(): ?array
@@ -49,7 +56,7 @@ readonly class SimpleEnumDtoObject extends DataTransferObject {
     }
 }
 
-readonly class SimpleEnumArrayDtoObject  extends DataTransferObject
+readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 {
     public function __construct(public readonly mixed $test_cast) {}
 
@@ -57,7 +64,7 @@ readonly class SimpleEnumArrayDtoObject  extends DataTransferObject
     {
         return ['test_cast' => TestEnum::class.'[]'];
     }
-};
+}
 
 readonly class CastableDtoObject extends DataTransferObject
 {
@@ -67,7 +74,7 @@ readonly class CastableDtoObject extends DataTransferObject
     {
         return ['test_cast' => SimpleDtoObject::class];
     }
-};
+}
 
 readonly class CastableArrayDtoObject extends DataTransferObject
 {
@@ -75,10 +82,9 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => SimpleDtoObject::class . '[]'];
+        return ['test_cast' => SimpleDtoObject::class.'[]'];
     }
-};
-
+}
 
 readonly class NonCastableAObject extends DataTransferObject
 {
@@ -88,8 +94,7 @@ readonly class NonCastableAObject extends DataTransferObject
     {
         return ['test_cast' => 'test1234'];
     }
-};
-
+}
 
 class DataTransferObjectTest extends TestCase
 {
@@ -122,6 +127,13 @@ class DataTransferObjectTest extends TestCase
         $dto = $mock::make('{"test": "Test1234"}');
 
         $this->assertSame('Test1234', $dto->test);
+    }
+
+    public function test_it_can_make_dto_from_empty_json_string(): void
+    {
+        $dto = NullableSimpleDtoObject::make('');
+
+        $this->assertNull($dto->test);
     }
 
     public function test_it_can_make_dto_from_request(): void
@@ -311,7 +323,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_dto_array(): void
     {
-       $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
+        $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(2, $dto->test_cast);
@@ -377,6 +389,18 @@ class DataTransferObjectTest extends TestCase
         );
 
         $this->assertCount(2, $result);
+    }
+
+    public function test_it_can_map_to_dto_arrays_with_missing_key(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $result = $mock::mapToDtoArray(
+            ['data' => [['test' => 'A'], ['test' => 'B']]],
+            'test'
+        );
+
+        $this->assertSame([], $result);
     }
 
     public function test_it_throws_for_unknown_data(): void
