@@ -19,8 +19,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * @implements Arrayable<string,mixed>
@@ -191,12 +192,22 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         return [];
     }
 
+    public static function withValidator(Validator $validator, ?Request $request = null): void {}
+
     /**
-     * @param  array<string|int,mixed>  $validated_data
+     * @return array<string,string>
      */
-    protected static function makeFromRequestArray(array $validated_data, ?Request $request = null): static
+    public static function attributes(?Request $request = null): array
     {
-        return static::makeFromArray($validated_data);
+        return [];
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public static function messages(?Request $request = null): array
+    {
+        return [];
     }
 
     /**
@@ -205,9 +216,21 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
      */
     public static function validate(array $data, ?Request $request = null): array
     {
-        return Validator::make($data, static::rules($request) ?? [])
+        $validator = ValidatorFacade::make($data, static::rules($request) ?? [], static::messages($request), static::attributes($request));
+
+        static::withValidator($validator, $request);
+
+        return $validator
             ->after(static::afterValidation($request))
             ->validated();
+    }
+
+    /**
+     * @param  array<string|int,mixed>  $validated_data
+     */
+    protected static function makeFromRequestArray(array $validated_data, ?Request $request = null): static
+    {
+        return static::makeFromArray($validated_data);
     }
 
     public static function makeFromRequest(Request $request): static

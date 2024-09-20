@@ -12,6 +12,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
 use InvalidArgumentException;
 use stdClass;
 
@@ -28,6 +29,31 @@ readonly class SimpleDtoObject extends DataTransferObject
     public static function rules(?Request $request = null): ?array
     {
         return ['test' => ['min:15']];
+    }
+}
+
+readonly class ComplexValidationDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly string $test_1, public readonly string $test_2) {}
+
+    public static function rules(?Request $request = null): ?array
+    {
+        return ['test_2' => ['min:15'], 'test_1' => ['min:15']];
+    }
+
+    public static function attributes(?Request $request = null): array
+    {
+        return ['test_1' => 'TEST_ATTRIBUTE_OVERWRITE'];
+    }
+
+    public static function messages(?Request $request = null): array
+    {
+        return ['test_2.min' => 'TEST_MESSAGE_OVERWRITE'];
+    }
+
+    public static function withValidator(Validator $validator, ?Request $request = null): void
+    {
+        $validator->after(fn (Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
     }
 }
 
@@ -105,7 +131,7 @@ class DataTransferObjectTest extends TestCase
 
     private function prepareSimpleModel(): Model
     {
-        return new class() extends Model
+        return new class extends Model
         {
             protected $guarded = [];
         };
@@ -230,11 +256,30 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject('');
 
-        $request = (new Request())->merge(['test' => 'ABC']);
+        $request = (new Request)->merge(['test' => 'ABC']);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('The test field must be at least 15 characters.');
         $mock::makeFromRequest($request);
+    }
+
+    public function test_it_can_add_complex_validations(): void
+    {
+        $mock = new ComplexValidationDtoObject('', '');
+
+        $request = (new Request)->merge(['test_1' => 'ABC', 'test_2' => 'DEF']);
+
+        $exception = null;
+
+        try {
+            $mock::makeFromRequest($request);
+        } catch (ValidationException $exception) {
+            $this->assertContains('With Validator Test', $exception->errors()['test']);
+            $this->assertContains('The TEST_ATTRIBUTE_OVERWRITE field must be at least 15 characters.', $exception->errors()['test_1']);
+            $this->assertContains('TEST_MESSAGE_OVERWRITE', $exception->errors()['test_2']);
+        }
+
+        $this->assertNotNull($exception);
     }
 
     public function test_it_can_cast_dates(): void
