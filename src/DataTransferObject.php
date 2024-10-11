@@ -270,7 +270,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 : null;
         }
         if (is_a($cast, BackedEnum::class, true)) {
-            if ($data instanceof $cast) {
+            if (is_null($data) || $data instanceof $cast) {
                 return $data;
             }
 
