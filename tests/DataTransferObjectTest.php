@@ -324,7 +324,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new SimpleEnumArrayDtoObject('');
 
-        $dto = $mock::makeFromArray(['test_cast' => ['A', 'B']]);
+        $dto = $mock::makeFromArray(['test_cast' => [1 => 'B', 0 => 'A']]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(2, $dto->test_cast);

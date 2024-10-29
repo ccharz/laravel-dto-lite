@@ -249,6 +249,8 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     protected static function applyCast(mixed $data, string $cast): mixed
     {
         if (str_ends_with($cast, '[]') && is_array($data)) {
+            ksort($data);
+
             return array_map(
                 fn (mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
                 $data
