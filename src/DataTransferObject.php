@@ -112,6 +112,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
         if ($staticRules !== null && $staticRules !== []) {
             $rules[$key][] = 'array';
+
             foreach ($staticRules as $field => $value) {
                 $rules[$key.'.'.$field] = $value;
             }
@@ -135,7 +136,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
      * @param  array<string,array<int,mixed>>  $rules
      * @return array<string,array<int,mixed>>
      */
-    protected static function applyCastRules(array $rules, string $field, mixed $cast): array
+    protected static function applyCastRules(array $rules, string $field, string $cast): array
     {
         switch (true) {
             case is_string($cast) && str_ends_with($cast, '[]'):
@@ -160,17 +161,20 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     }
 
     /**
+     * @param string[]|null $except
      * @return array<string,array<int,mixed>>
      */
-    public static function castRules(): array
+    public static function castRules(?array $except = null): array
     {
         $casts = static::casts() ?? [];
 
         $rules = [];
 
         foreach ($casts as $field => $cast) {
-            $rules[$field] = [];
-            $rules = static::applyCastRules($rules, $field, $cast);
+            if (is_null($except) || !in_array($field, $except)) {
+                $rules[$field] = [];
+                $rules = static::applyCastRules($rules, $field, $cast);
+            }
         }
 
         return $rules;
@@ -248,7 +252,11 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
     protected static function applyCast(mixed $data, string $cast): mixed
     {
-        if (str_ends_with($cast, '[]') && is_array($data)) {
+        if (str_ends_with($cast, '[]')) {
+            if (!is_array($data) || $data === []) {
+                return [];
+            }
+
             ksort($data);
 
             return array_map(
