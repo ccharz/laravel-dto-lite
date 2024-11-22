@@ -386,6 +386,20 @@ class DataTransferObjectTest extends TestCase
         );
     }
 
+    public function test_it_can_cast_to_an_empty_dto_array(): void
+    {
+        $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => []]);
+
+        $this->assertIsArray($dto->test_cast);
+        $this->assertCount(0, $dto->test_cast);
+        
+    }
+
+    public function test_it_can_ignore_cast_rules(): void
+    {
+        $this->assertSame([], CastableArrayDtoObject::castRules(['test_cast']));
+    }
+
     public function test_it_can_cast_to_empty_dto(): void
     {
         $dto = CastableDtoObject::makeFromArray(['test_cast' => null]);
