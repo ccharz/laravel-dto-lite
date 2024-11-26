@@ -392,7 +392,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(0, $dto->test_cast);
-        
+
     }
 
     public function test_it_can_ignore_cast_rules(): void
@@ -425,7 +425,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(['child' => ['array'], 'child.*' => ['array'], 'child.*.test' => ['min:15']], $mock::appendArrayElementRules([], 'child'));
     }
 
-    public function test_it_can_map_to_dto_arrays(): void
+    public function test_it_can_map_an_array_to_dto_arrays(): void
     {
         $mock = $this->prepareSimpleDtoObject();
 
@@ -436,6 +436,15 @@ class DataTransferObjectTest extends TestCase
         $this->assertIsObject($result[1]);
         $this->assertSame('A', $result[0]->test);
         $this->assertSame('B', $result[1]->test);
+    }
+
+    public function test_it_can_map_an_collection_to_dto_arrays(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $result = $mock::mapToDtoArray(collect([['test' => 'A'], ['test' => 'B']]));
+
+        $this->assertCount(2, $result);
     }
 
     public function test_it_can_map_to_dto_arrays_with_key(): void

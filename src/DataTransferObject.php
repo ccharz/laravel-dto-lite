@@ -2,6 +2,7 @@
 
 namespace Ccharz\DtoLite;
 
+use ArrayAccess;
 use BackedEnum;
 use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Month;
@@ -161,7 +162,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     }
 
     /**
-     * @param string[]|null $except
+     * @param  string[]|null  $except
      * @return array<string,array<int,mixed>>
      */
     public static function castRules(?array $except = null): array
@@ -171,7 +172,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         $rules = [];
 
         foreach ($casts as $field => $cast) {
-            if (is_null($except) || !in_array($field, $except)) {
+            if (is_null($except) || ! in_array($field, $except)) {
                 $rules[$field] = [];
                 $rules = static::applyCastRules($rules, $field, $cast);
             }
@@ -253,7 +254,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     protected static function applyCast(mixed $data, string $cast): mixed
     {
         if (str_ends_with($cast, '[]')) {
-            if (!is_array($data) || $data === []) {
+            if (! is_array($data) || $data === []) {
                 return [];
             }
 
@@ -343,6 +344,9 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         throw new Exception('Invalid data to make data transfer object');
     }
 
+    /**
+     * @return JsonResponse
+     */
     public function toResponse($request)
     {
         return new JsonResponse($this->toArray());
@@ -363,18 +367,17 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     }
 
     /**
-     * @template T of string|int
+     * @template TKey of array-key
+     * @template T of ArrayAccess<TKey,mixed>|array<TKey,mixed>
      *
-     * @TODO Remove phpstan-ignore
-     *
-     * @param  iterable<T,mixed>  $array_map
-     * @param  T|null  $key
+     * @param  T  $array_map
+     * @param  TKey|null  $offset
      * @return static[]
      */
-    public static function mapToDtoArray(iterable $array_map = [], string|int|null $key = null): array
+    public static function mapToDtoArray(ArrayAccess|array $array_map, string|int|null $offset = null): array
     {
-        if ($key !== null) {
-            $array_map = $array_map[$key] ?? []; // @phpstan-ignore offsetAccess.nonOffsetAccessible
+        if ($offset !== null) {
+            $array_map = $array_map[$offset] ?? [];
         }
 
         $output = [];
