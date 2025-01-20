@@ -19,10 +19,10 @@
         "laravel/framework": "^10.0|^11.0"
     },
     "require-dev": {
-        "larastan/larastan": "^2.0",
-        "laravel/pint": "^1.14",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.20",
         "orchestra/testbench": "^8.17|^9.0",
-        "rector/rector": "^1.2"
+        "rector/rector": "^2.0"
     },
     "autoload": {
         "psr-4": {

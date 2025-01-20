@@ -55,7 +55,7 @@ readonly class ComplexValidationDtoObject extends DataTransferObject
 
     public static function withValidator(Validator $validator, ?Request $request = null): void
     {
-        $validator->after(fn(Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
+        $validator->after(fn (Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
     }
 }
 
@@ -73,7 +73,6 @@ readonly class SimpleDateDtoObject extends DataTransferObject
         return ['test' => 'datetime'];
     }
 }
-
 
 readonly class SimpleImmutableDateDtoObject extends DataTransferObject
 {
@@ -101,7 +100,7 @@ readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => TestEnum::class . '[]'];
+        return ['test_cast' => TestEnum::class.'[]'];
     }
 }
 
@@ -121,7 +120,7 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => SimpleDtoObject::class . '[]'];
+        return ['test_cast' => SimpleDtoObject::class.'[]'];
     }
 }
 

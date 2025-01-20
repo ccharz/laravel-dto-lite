@@ -70,7 +70,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             $value instanceof CarbonInterface => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
             is_array($value) => array_map(
-                fn ($element): mixed => $this->simplify($element),
+                fn($element): mixed => $this->simplify($element),
                 $value
             ),
             default => $value
@@ -116,7 +116,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             $rules[$key][] = 'array';
 
             foreach ($staticRules as $field => $value) {
-                $rules[$key.'.'.$field] = $value;
+                $rules[$key . '.' . $field] = $value;
             }
         }
 
@@ -131,7 +131,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     {
         $rules[$key] = ['array'];
 
-        return static::appendRules($rules, $key.'.*');
+        return static::appendRules($rules, $key . '.*');
     }
 
     /**
@@ -141,19 +141,24 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     protected static function applyCastRules(array $rules, string $field, string $cast): array
     {
         switch (true) {
-            case is_string($cast) && str_ends_with($cast, '[]'):
-                $cast = substr($cast, 0, -2);
-                $rules[$field][] = 'array';
-                $rules = static::applyCastRules($rules, $field.'.*', $cast);
-                break;
             case $cast === 'datetime':
                 $rules[$field][] = 'date';
+
                 break;
-            case is_string($cast) && is_a($cast, DataTransferObject::class, true):
+
+            case str_ends_with($cast, '[]'):
+                $cast = substr($cast, 0, -2);
+                $rules[$field][] = 'array';
+                $rules = static::applyCastRules($rules, $field . '.*', $cast);
+
+                break;
+
+            case is_a($cast, DataTransferObject::class, true):
                 $rules = $cast::appendRules($rules, $field);
 
                 break;
-            case is_string($cast) && is_a($cast, BackedEnum::class, true):
+
+            case is_a($cast, BackedEnum::class, true):
                 $rules[$field][] = Rule::enum($cast);
 
                 break;
@@ -262,7 +267,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             ksort($data);
 
             return array_map(
-                fn (mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
+                fn(mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
                 $data
             );
         }
@@ -290,7 +295,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 return $cast::tryFrom($data);
             }
         }
-        throw new Exception('Unknown cast "'.$cast.'"');
+        throw new Exception('Unknown cast "' . $cast . '"');
     }
 
     /**
