@@ -140,28 +140,21 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
      */
     protected static function applyCastRules(array $rules, string $field, string $cast): array
     {
-        switch (true) {
-            case $cast === 'datetime':
-                $rules[$field][] = 'date';
+        if (str_starts_with($cast, '?')) {
+            $rules[$field][] = 'nullable';
+            $cast = substr($cast, 1);
+        }
 
-                break;
-
-            case str_ends_with($cast, '[]'):
-                $cast = substr($cast, 0, -2);
-                $rules[$field][] = 'array';
-                $rules = static::applyCastRules($rules, $field . '.*', $cast);
-
-                break;
-
-            case is_a($cast, DataTransferObject::class, true):
-                $rules = $cast::appendRules($rules, $field);
-
-                break;
-
-            case is_a($cast, BackedEnum::class, true):
-                $rules[$field][] = Rule::enum($cast);
-
-                break;
+        if (str_ends_with($cast, '[]')) {
+            $cast = substr($cast, 0, -2);
+            $rules[$field][] = 'array';
+            $rules = static::applyCastRules($rules, $field . '.*', $cast);
+        } else if ($cast === 'datetime') {
+            $rules[$field][] = 'date';
+        } else if (is_a($cast, DataTransferObject::class, true)) {
+            $rules = $cast::appendRules($rules, $field);
+        } else if (is_a($cast, BackedEnum::class, true)) {
+            $rules[$field][] = Rule::enum($cast);
         }
 
         return $rules;
@@ -259,7 +252,18 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
     protected static function applyCast(mixed $data, string $cast): mixed
     {
+        $nullable = false;
+
+        if (str_starts_with($cast, '?')) {
+            $nullable = true;
+            $cast = substr($cast, 1);
+        }
+
         if (str_ends_with($cast, '[]')) {
+            if ($data === null && $nullable) {
+                return null;
+            }
+
             if (! is_array($data) || $data === []) {
                 return [];
             }
@@ -271,6 +275,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 $data
             );
         }
+
         if ($cast === 'datetime') {
             return $data instanceof WeekDay || $data instanceof Month || $data instanceof DateTimeInterface || is_numeric($data) || is_string($data)
                 ? Date::parse($data)

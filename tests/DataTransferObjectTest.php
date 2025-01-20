@@ -55,7 +55,7 @@ readonly class ComplexValidationDtoObject extends DataTransferObject
 
     public static function withValidator(Validator $validator, ?Request $request = null): void
     {
-        $validator->after(fn (Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
+        $validator->after(fn(Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
     }
 }
 
@@ -100,7 +100,7 @@ readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => TestEnum::class.'[]'];
+        return ['test_cast' => TestEnum::class . '[]'];
     }
 }
 
@@ -120,7 +120,17 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => SimpleDtoObject::class.'[]'];
+        return ['test_cast' => SimpleDtoObject::class . '[]'];
+    }
+}
+
+readonly class CastableNullableArrayDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => '?' . SimpleDtoObject::class . '[]'];
     }
 }
 
@@ -320,6 +330,16 @@ class DataTransferObjectTest extends TestCase
         $this->assertInstanceOf(CarbonImmutable::class, $dto->test);
 
         $this->assertSame(['test' => '2024-02-02T00:00:00.000000Z'], $dto->toArray());
+    }
+
+    public function test_it_can_handle_nullable_casts(): void
+    {
+        $dto = CastableNullableArrayDtoObject::makeFromArray([
+            'test_cast' => null
+        ]);
+
+        $this->assertNull($dto->test_cast);
+        $this->assertSame(['nullable', 'array'], $dto::rules()['test_cast']);
     }
 
     public function test_it_can_cast_enums(): void
