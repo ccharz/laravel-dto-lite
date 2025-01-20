@@ -4,6 +4,7 @@ namespace Ccharz\DtoLite;
 
 use ArrayAccess;
 use BackedEnum;
+use Carbon\CarbonInterface;
 use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Month;
 use Carbon\WeekDay;
@@ -19,7 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -66,7 +67,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     {
         return match (true) {
             $value instanceof BackedEnum => $value->value,
-            $value instanceof Carbon => $value->toJson(),
+            $value instanceof CarbonInterface => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
             is_array($value) => array_map(
                 fn ($element): mixed => $this->simplify($element),
@@ -267,7 +268,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         }
         if ($cast === 'datetime') {
             return $data instanceof WeekDay || $data instanceof Month || $data instanceof DateTimeInterface || is_numeric($data) || is_string($data)
-                ? Carbon::parse($data)
+                ? Date::parse($data)
                 : null;
         }
 
