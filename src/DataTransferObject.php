@@ -70,7 +70,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             $value instanceof CarbonInterface => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
             is_array($value) => array_map(
-                fn($element): mixed => $this->simplify($element),
+                fn ($element): mixed => $this->simplify($element),
                 $value
             ),
             default => $value
@@ -116,7 +116,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             $rules[$key][] = 'array';
 
             foreach ($staticRules as $field => $value) {
-                $rules[$key . '.' . $field] = $value;
+                $rules[$key.'.'.$field] = $value;
             }
         }
 
@@ -131,7 +131,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     {
         $rules[$key] = ['array'];
 
-        return static::appendRules($rules, $key . '.*');
+        return static::appendRules($rules, $key.'.*');
     }
 
     /**
@@ -148,12 +148,12 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
         if (str_ends_with($cast, '[]')) {
             $cast = substr($cast, 0, -2);
             $rules[$field][] = 'array';
-            $rules = static::applyCastRules($rules, $field . '.*', $cast);
-        } else if ($cast === 'datetime') {
+            $rules = static::applyCastRules($rules, $field.'.*', $cast);
+        } elseif ($cast === 'datetime') {
             $rules[$field][] = 'date';
-        } else if (is_a($cast, DataTransferObject::class, true)) {
+        } elseif (is_a($cast, DataTransferObject::class, true)) {
             $rules = $cast::appendRules($rules, $field);
-        } else if (is_a($cast, BackedEnum::class, true)) {
+        } elseif (is_a($cast, BackedEnum::class, true)) {
             $rules[$field][] = Rule::enum($cast);
         }
 
@@ -271,7 +271,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
             ksort($data);
 
             return array_map(
-                fn(mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
+                fn (mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
                 $data
             );
         }
@@ -300,7 +300,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 return $cast::tryFrom($data);
             }
         }
-        throw new Exception('Unknown cast "' . $cast . '"');
+        throw new Exception('Unknown cast "'.$cast.'"');
     }
 
     /**

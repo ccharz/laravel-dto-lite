@@ -55,7 +55,7 @@ readonly class ComplexValidationDtoObject extends DataTransferObject
 
     public static function withValidator(Validator $validator, ?Request $request = null): void
     {
-        $validator->after(fn(Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
+        $validator->after(fn (Validator $validator) => $validator->errors()->add('test', 'With Validator Test'));
     }
 }
 
@@ -100,7 +100,7 @@ readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => TestEnum::class . '[]'];
+        return ['test_cast' => TestEnum::class.'[]'];
     }
 }
 
@@ -120,7 +120,7 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => SimpleDtoObject::class . '[]'];
+        return ['test_cast' => SimpleDtoObject::class.'[]'];
     }
 }
 
@@ -130,7 +130,7 @@ readonly class CastableNullableArrayDtoObject extends DataTransferObject
 
     public static function casts(): ?array
     {
-        return ['test_cast' => '?' . SimpleDtoObject::class . '[]'];
+        return ['test_cast' => '?'.SimpleDtoObject::class.'[]'];
     }
 }
 
@@ -335,7 +335,7 @@ class DataTransferObjectTest extends TestCase
     public function test_it_can_handle_nullable_casts(): void
     {
         $dto = CastableNullableArrayDtoObject::makeFromArray([
-            'test_cast' => null
+            'test_cast' => null,
         ]);
 
         $this->assertNull($dto->test_cast);
