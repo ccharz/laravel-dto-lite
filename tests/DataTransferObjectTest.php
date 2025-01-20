@@ -2,6 +2,7 @@
 
 namespace Ccharz\DtoLite\Tests;
 
+use Carbon\CarbonImmutable;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
@@ -72,6 +74,16 @@ readonly class SimpleDateDtoObject extends DataTransferObject
     }
 }
 
+readonly class SimpleImmutableDateDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly ?CarbonImmutable $test) {}
+
+    public static function casts(): ?array
+    {
+        return ['test' => 'datetime'];
+    }
+}
+
 readonly class SimpleEnumDtoObject extends DataTransferObject
 {
     public function __construct(public readonly TestEnum $testEnum) {}
@@ -109,6 +121,16 @@ readonly class CastableArrayDtoObject extends DataTransferObject
     public static function casts(): ?array
     {
         return ['test_cast' => SimpleDtoObject::class.'[]'];
+    }
+}
+
+readonly class CastableNullableArrayDtoObject extends DataTransferObject
+{
+    public function __construct(public readonly mixed $test_cast) {}
+
+    public static function casts(): ?array
+    {
+        return ['test_cast' => '?'.SimpleDtoObject::class.'[]'];
     }
 }
 
@@ -297,6 +319,29 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(['test' => ['date']], $mock::rules());
     }
 
+    public function test_it_can_handle_immutable_dates(): void
+    {
+        Date::use(CarbonImmutable::class);
+
+        $mock = new SimpleImmutableDateDtoObject(CarbonImmutable::parse('01.01.2022'));
+
+        $dto = $mock::makeFromArray(['test' => '02.02.2024']);
+
+        $this->assertInstanceOf(CarbonImmutable::class, $dto->test);
+
+        $this->assertSame(['test' => '2024-02-02T00:00:00.000000Z'], $dto->toArray());
+    }
+
+    public function test_it_can_handle_nullable_casts(): void
+    {
+        $dto = CastableNullableArrayDtoObject::makeFromArray([
+            'test_cast' => null,
+        ]);
+
+        $this->assertNull($dto->test_cast);
+        $this->assertSame(['nullable', 'array'], $dto::rules()['test_cast']);
+    }
+
     public function test_it_can_cast_enums(): void
     {
         $mock = new SimpleEnumDtoObject(TestEnum::A);
@@ -392,7 +437,6 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(0, $dto->test_cast);
-
     }
 
     public function test_it_can_ignore_cast_rules(): void
