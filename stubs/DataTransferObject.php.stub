@@ -8,10 +8,10 @@ use Illuminate\Http\Request;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class {{ CLASS }} extends DataTransferObject
+readonly class {{ CLASS }} extends DataTransferObject
 {
     public function __construct(
-        public readonly ?string $id,
+        public int $id,
         {{ VARIABLES }}
     ) {
     }

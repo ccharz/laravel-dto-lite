@@ -3,6 +3,7 @@
 namespace Ccharz\DtoLite\Tests;
 
 use Carbon\CarbonImmutable;
+use Ccharz\DtoLite\AsDataTransferObjectCollection;
 use Ccharz\DtoLite\DataTransferObject;
 use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +28,7 @@ enum TestEnum: string
 
 readonly class SimpleDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly string $test) {}
+    public function __construct(public string $test) {}
 
     public static function rules(?Request $request = null): ?array
     {
@@ -36,7 +38,7 @@ readonly class SimpleDtoObject extends DataTransferObject
 
 readonly class ComplexValidationDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly string $test_1, public readonly string $test_2) {}
+    public function __construct(public string $test_1, public string $test_2) {}
 
     public static function rules(?Request $request = null): ?array
     {
@@ -61,12 +63,12 @@ readonly class ComplexValidationDtoObject extends DataTransferObject
 
 readonly class NullableSimpleDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly ?string $test = null) {}
+    public function __construct(public ?string $test = null) {}
 }
 
 readonly class SimpleDateDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly ?Carbon $test) {}
+    public function __construct(public ?Carbon $test) {}
 
     public static function casts(): ?array
     {
@@ -76,7 +78,7 @@ readonly class SimpleDateDtoObject extends DataTransferObject
 
 readonly class SimpleImmutableDateDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly ?CarbonImmutable $test) {}
+    public function __construct(public ?CarbonImmutable $test) {}
 
     public static function casts(): ?array
     {
@@ -86,7 +88,7 @@ readonly class SimpleImmutableDateDtoObject extends DataTransferObject
 
 readonly class SimpleEnumDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly TestEnum $testEnum) {}
+    public function __construct(public TestEnum $testEnum) {}
 
     public static function casts(): ?array
     {
@@ -96,7 +98,7 @@ readonly class SimpleEnumDtoObject extends DataTransferObject
 
 readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly mixed $test_cast) {}
+    public function __construct(public mixed $test_cast) {}
 
     public static function casts(): ?array
     {
@@ -106,7 +108,7 @@ readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 
 readonly class CastableDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly mixed $test_cast) {}
+    public function __construct(public mixed $test_cast) {}
 
     public static function casts(): ?array
     {
@@ -116,7 +118,7 @@ readonly class CastableDtoObject extends DataTransferObject
 
 readonly class CastableArrayDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly mixed $test_cast) {}
+    public function __construct(public mixed $test_cast) {}
 
     public static function casts(): ?array
     {
@@ -126,7 +128,7 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 
 readonly class CastableNullableArrayDtoObject extends DataTransferObject
 {
-    public function __construct(public readonly mixed $test_cast) {}
+    public function __construct(public mixed $test_cast) {}
 
     public static function casts(): ?array
     {
@@ -136,7 +138,7 @@ readonly class CastableNullableArrayDtoObject extends DataTransferObject
 
 readonly class NonCastableAObject extends DataTransferObject
 {
-    public function __construct(public readonly mixed $test_cast) {}
+    public function __construct(public mixed $test_cast) {}
 
     public static function casts(): ?array
     {
@@ -156,6 +158,24 @@ class DataTransferObjectTest extends TestCase
         return new class extends Model
         {
             protected $guarded = [];
+        };
+    }
+
+    private function prepareCastModel(): Model
+    {
+        return new class extends Model
+        {
+            protected $guarded = [];
+
+            /**
+             * @return array<string, string>
+             */
+            protected function casts(): array
+            {
+                return [
+                    'items' => AsDataTransferObjectCollection::of(SimpleDtoObject::class),
+                ];
+            }
         };
     }
 
@@ -582,5 +602,44 @@ class DataTransferObjectTest extends TestCase
         $this->assertTrue($filesystem->exists(base_path('app/Data/TestData.php')));
 
         $filesystem->deleteDirectory(base_path('app/Data'));
+    }
+
+    public function test_it_can_cast_a_model_attribute_into_data_transfer_object_collections(): void
+    {
+        $model = $this->prepareCastModel();
+
+        $model->setRawAttributes(['items' => '[{"test":"Test1"},{"test":"Test2"}]']);
+
+        $this->assertInstanceOf(Collection::class, $model->items);
+        $this->assertCount(2, $model->items);
+
+        $this->assertSame('{"items":[{"test":"Test1"},{"test":"Test2"}]}', $model->toJson());
+    }
+
+    public function test_it_fails_silently_when_trying__to_cast_model_attributes_without_arrays(): void
+    {
+        $model = $this->prepareCastModel();
+
+        $model->setRawAttributes(['items' => '{"test":"Test"}']);
+
+        $this->assertNull($model->items);
+    }
+
+    public function test_it_fails_silently_when_trying_to_cast_model_attributes_without_data(): void
+    {
+        $model = $this->prepareCastModel();
+
+        $model->setRawAttributes(['items' => null]);
+
+        $this->assertNull($model->items);
+    }
+
+    public function test_it_fails_silently_when_trying_to_set_to_null(): void
+    {
+        $model = $this->prepareCastModel();
+
+        $model->items = null;
+
+        $this->assertNull($model->items);
     }
 }
