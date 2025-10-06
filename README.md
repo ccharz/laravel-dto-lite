@@ -20,11 +20,11 @@ enum ContactType : string {
     case COMPANY = 'company';
 }
 
-class ContactData extends DataTransferObject {
+readonly class ContactData extends DataTransferObject {
     public function __construct(
-        public readonly string $name,
-        public readonly string $email,
-        public readonly ContactType $type,
+        public string $name,
+        public string $email,
+        public ContactType $type,
     ) {}
 }
 ```
@@ -39,26 +39,26 @@ enum ContactType : string {
     case COMPANY = 'company';
 }
 
-class AddressData extends DataTransferObject
+readonly class AddressData extends DataTransferObject
 {
     public function __construct(
-        public readonly ?string $country = null,
-        public readonly ?string $zip = null,
-        public readonly ?string $location = null,
-        public readonly ?string $street = null,
-        public readonly ?string $streetnumber = null,
-        public readonly ?string $stair = null,
-        public readonly ?string $top = null,
+        public ?string $country = null,
+        public ?string $zip = null,
+        public ?string $location = null,
+        public ?string $street = null,
+        public ?string $streetnumber = null,
+        public ?string $stair = null,
+        public ?string $top = null,
     ) {
     }
 }
 
-class ContactData extends DataTransferObject {
+readonly class ContactData extends DataTransferObject {
     public function __construct(
         /** @var AddressData[] $addresses */
-        public readonly array $addresses,
-        public readonly DateTime $birthday,
-        public readonly ContactType $type,
+        public array $addresses,
+        public DateTime $birthday,
+        public ContactType $type,
     ) {}
 
     public static function casts(): array
@@ -141,6 +141,24 @@ class Contact extends Model
 }
 ```
 
+Casting arrays of Data Transfer Objects:
+
+```php
+use Ccharz\DtoLite\AsDataTransferObjectCollection;
+
+/**
+ * Get the attributes that should be cast.
+ *
+ * @return array<string, string>
+ */
+protected function casts(): array
+{
+    return [
+        'addresses' => AsDataTransferObjectCollection::of(AddressData::class),
+    ];
+}
+```
+
 ### Response
 
 Data Transfer Objects are automatically converted to an response if returned from a controller
@@ -195,7 +213,7 @@ namespace App\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-class AddressData extends DataTransferObject
+readonly class AddressData extends DataTransferObject
 {
     public function __construct(
         public readonly ?string $country = null,
