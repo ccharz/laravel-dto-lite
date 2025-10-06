@@ -167,6 +167,11 @@ class DataTransferObjectTest extends TestCase
         {
             protected $guarded = [];
 
+            /** Required for L10 */
+            protected $casts = [
+                'items' => 'Ccharz\DtoLite\AsDataTransferObjectCollection:Ccharz\DtoLite\Tests\SimpleDtoObject',
+            ];
+
             /**
              * @return array<string, string>
              */
