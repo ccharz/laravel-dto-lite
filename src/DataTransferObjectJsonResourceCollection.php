@@ -27,6 +27,6 @@ class DataTransferObjectJsonResourceCollection extends AnonymousResourceCollecti
      */
     public function toArray(Request $request)
     {
-        return $this->collection->map->toDtoArray($request, $this->dataTransferObjectClass)->all();
+        return $this->collection?->map->toDtoArray($request, $this->dataTransferObjectClass)->all() ?? [];
     }
 }

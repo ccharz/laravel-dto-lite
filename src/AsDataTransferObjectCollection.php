@@ -4,7 +4,9 @@ namespace Ccharz\DtoLite;
 
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Contracts\Database\Eloquent\SerializesCastableAttributes;
 use Illuminate\Database\Eloquent\Casts\Json;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
@@ -20,8 +22,11 @@ class AsDataTransferObjectCollection implements Castable
      */
     public static function castUsing(array $arguments)
     {
-        return new class($arguments) implements CastsAttributes
+        return new class($arguments) implements CastsAttributes, SerializesCastableAttributes
         {
+            /**
+             * @param  array{class-string<TDataTransferObject>}  $arguments
+             */
             public function __construct(protected array $arguments) {}
 
             public function get($model, $key, $value, $attributes)
@@ -43,7 +48,7 @@ class AsDataTransferObjectCollection implements Castable
 
             public function set($model, $key, $value, $attributes)
             {
-                $value = $value !== null
+                $value = $value !== null && is_iterable($value)
                     ? Json::encode((new Collection($value))
                         ->map(fn (DataTransferObject $dataTransferObject): array => $dataTransferObject->jsonSerialize())
                         ->jsonSerialize())
@@ -52,11 +57,13 @@ class AsDataTransferObjectCollection implements Castable
                 return [$key => $value];
             }
 
-            public function serialize($model, string $key, $value, array $attributes)
+            public function serialize(Model $model, string $key, mixed $value, array $attributes)
             {
-                return (new Collection($value))
-                    ->map(fn (DataTransferObject $dataTransferObject): array => $dataTransferObject->jsonSerialize())
-                    ->toArray();
+                return is_iterable($value)
+                    ? (new Collection($value))
+                        ->map(fn (DataTransferObject $dataTransferObject): array => $dataTransferObject->jsonSerialize())
+                        ->toArray()
+                    : [];
             }
         };
     }

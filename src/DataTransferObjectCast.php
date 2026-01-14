@@ -54,7 +54,7 @@ class DataTransferObjectCast implements CastsAttributes
         }
 
         if (! $value instanceof Jsonable) {
-            throw new InvalidArgumentException("Value must be of type [$this->class], array, or null");
+            throw new InvalidArgumentException(sprintf('Value must be of type [%s], array, or null', $this->class));
         }
 
         return $value->toJson();
