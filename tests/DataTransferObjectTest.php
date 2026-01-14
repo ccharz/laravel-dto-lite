@@ -316,17 +316,14 @@ class DataTransferObjectTest extends TestCase
 
         $request = (new Request)->merge(['test_1' => 'ABC', 'test_2' => 'DEF']);
 
-        $exception = null;
-
         try {
             $mock::makeFromRequest($request);
-        } catch (ValidationException $exception) {
-            $this->assertContains('With Validator Test', $exception->errors()['test']);
-            $this->assertContains('The TEST_ATTRIBUTE_OVERWRITE field must be at least 15 characters.', $exception->errors()['test_1']);
-            $this->assertContains('TEST_MESSAGE_OVERWRITE', $exception->errors()['test_2']);
+            $this->fail('Expected ValidationException was not thrown');
+        } catch (ValidationException $validationException) {
+            $this->assertContains('With Validator Test', $validationException->errors()['test']);
+            $this->assertContains('The TEST_ATTRIBUTE_OVERWRITE field must be at least 15 characters.', $validationException->errors()['test_1']);
+            $this->assertContains('TEST_MESSAGE_OVERWRITE', $validationException->errors()['test_2']);
         }
-
-        $this->assertNotNull($exception);
     }
 
     public function test_it_can_cast_dates(): void
@@ -646,5 +643,14 @@ class DataTransferObjectTest extends TestCase
         $model->items = null;
 
         $this->assertNull($model->items);
+    }
+
+    public function test_it_serializes_empty_collection_cast_to_empty_array(): void
+    {
+        $model = $this->prepareCastModel();
+
+        $model->setRawAttributes(['items' => '[]']);
+
+        $this->assertSame('{"items":[]}', $model->toJson());
     }
 }

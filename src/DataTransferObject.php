@@ -40,7 +40,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
     }
 
     /**
-     * @return class-string<AnonymousResourceCollection>
+     * @return class-string<DataTransferObjectJsonResourceCollection>
      */
     public static function resourceCollectionClass(): string
     {
@@ -291,6 +291,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 ? $cast::makeFromArray($data)
                 : null;
         }
+
         if (is_a($cast, BackedEnum::class, true)) {
             if (is_null($data) || $data instanceof $cast) {
                 return $data;
@@ -300,6 +301,7 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
                 return $cast::tryFrom($data);
             }
         }
+
         throw new Exception('Unknown cast "'.$cast.'"');
     }
 
@@ -393,8 +395,10 @@ abstract readonly class DataTransferObject implements Arrayable, Castable, Jsona
 
         $output = [];
 
-        foreach ($array_map as $array_element) {
-            $output[] = static::make($array_element);
+        if (is_iterable($array_map)) {
+            foreach ($array_map as $array_element) {
+                $output[] = static::make($array_element);
+            }
         }
 
         return $output;
