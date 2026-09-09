@@ -1,7 +1,10 @@
 <?php
 
-namespace Ccharz\DtoLite;
+declare(strict_types=1);
 
+namespace Ccharz\DtoLite\Casts;
+
+use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Database\Eloquent\SerializesCastableAttributes;
@@ -15,7 +18,7 @@ class AsDataTransferObjectCollection implements Castable
     /**
      * Get the caster class to use when casting from / to this cast target.
      *
-     * @template TDataTransferObject of \Ccharz\DtoLite\DataTransferObject
+     * @template TDataTransferObject of DataTransferObject
      *
      * @param  array{class-string<TDataTransferObject>}  $arguments
      * @return CastsAttributes<Collection<array-key, TDataTransferObject>, iterable<TDataTransferObject>>

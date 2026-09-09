@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ccharz\DtoLite\Tests;
 
 use Carbon\CarbonImmutable;
-use Ccharz\DtoLite\AsDataTransferObjectCollection;
+use Ccharz\DtoLite\Casts\AsDataTransferObject;
+use Ccharz\DtoLite\Casts\AsDataTransferObjectCollection;
 use Ccharz\DtoLite\DataTransferObject;
-use Ccharz\DtoLite\DataTransferObjectCast;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\JsonResponse;
@@ -167,11 +169,6 @@ class DataTransferObjectTest extends TestCase
         {
             protected $guarded = [];
 
-            /** Required for L10 */
-            protected $casts = [
-                'items' => 'Ccharz\DtoLite\AsDataTransferObjectCollection:Ccharz\DtoLite\Tests\SimpleDtoObject',
-            ];
-
             /**
              * @return array<string, string>
              */
@@ -235,7 +232,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast($mock::class, []);
+        $cast = new AsDataTransferObject($mock::class, []);
 
         /* SET */
         $this->assertSame('{"test":"Test1234"}', $cast->set($model, 'data', ['test' => 'Test1234'], []));
@@ -250,7 +247,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast($mock::class, ['nullable']);
+        $cast = new AsDataTransferObject($mock::class, ['nullable']);
 
         /* GET */
         $this->assertSame(null, $cast->get($model, 'data', null, []));
@@ -261,7 +258,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast($mock::class, []);
+        $cast = new AsDataTransferObject($mock::class, []);
 
         $this->expectExceptionMessage('data is not a string');
         $cast->get($model, 'data', null, []);
@@ -272,7 +269,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
         $model = $this->prepareSimpleModel();
 
-        $cast = new DataTransferObjectCast($mock::class, []);
+        $cast = new AsDataTransferObject($mock::class, []);
 
         $this->expectException(InvalidArgumentException::class);
         $cast->set($model, 'data', 'test1234', []);
@@ -282,7 +279,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $this->assertInstanceOf(DataTransferObjectCast::class, $mock->castUsing([]));
+        $this->assertInstanceOf(AsDataTransferObject::class, $mock->castUsing([]));
     }
 
     public function test_it_can_serialize_to_json(): void
@@ -307,7 +304,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('The test field must be at least 15 characters.');
-        $mock::makeFromRequest($request);
+        $mock::make($request);
     }
 
     public function test_it_can_add_complex_validations(): void
@@ -317,7 +314,7 @@ class DataTransferObjectTest extends TestCase
         $request = (new Request)->merge(['test_1' => 'ABC', 'test_2' => 'DEF']);
 
         try {
-            $mock::makeFromRequest($request);
+            $mock::make($request);
             $this->fail('Expected ValidationException was not thrown');
         } catch (ValidationException $validationException) {
             $this->assertContains('With Validator Test', $validationException->errors()['test']);
@@ -330,11 +327,11 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new SimpleDateDtoObject(Carbon::parse('01.01.2022'));
 
-        $dto = $mock::makeFromArray(['test' => '02.02.2024']);
+        $dto = $mock::make(['test' => '02.02.2024']);
 
         $this->assertInstanceOf(Carbon::class, $dto->test);
 
-        $dto = $mock::makeFromArray(['test' => null]);
+        $dto = $mock::make(['test' => null]);
 
         $this->assertNull($dto->test);
 
@@ -347,7 +344,7 @@ class DataTransferObjectTest extends TestCase
 
         $mock = new SimpleImmutableDateDtoObject(CarbonImmutable::parse('01.01.2022'));
 
-        $dto = $mock::makeFromArray(['test' => '02.02.2024']);
+        $dto = $mock::make(['test' => '02.02.2024']);
 
         $this->assertInstanceOf(CarbonImmutable::class, $dto->test);
 
@@ -356,7 +353,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_handle_nullable_casts(): void
     {
-        $dto = CastableNullableArrayDtoObject::makeFromArray([
+        $dto = CastableNullableArrayDtoObject::make([
             'test_cast' => null,
         ]);
 
@@ -368,7 +365,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new SimpleEnumDtoObject(TestEnum::A);
 
-        $dto = $mock::makeFromArray(['testEnum' => 'B']);
+        $dto = $mock::make(['testEnum' => 'B']);
 
         $this->assertInstanceOf(TestEnum::class, $dto->testEnum);
         $this->assertSame(TestEnum::B, $dto->testEnum);
@@ -382,7 +379,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new SimpleEnumDtoObject(TestEnum::A);
 
-        $dto = $mock::makeFromArray(['testEnum' => TestEnum::B]);
+        $dto = $mock::make(['testEnum' => TestEnum::B]);
 
         $this->assertSame(TestEnum::B, $dto->testEnum);
     }
@@ -391,7 +388,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new SimpleEnumArrayDtoObject('');
 
-        $dto = $mock::makeFromArray(['test_cast' => [1 => 'B', 0 => 'A']]);
+        $dto = $mock::make(['test_cast' => [1 => 'B', 0 => 'A']]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(2, $dto->test_cast);
@@ -409,7 +406,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock_b = new CastableDtoObject('');
 
-        $dto = $mock_b::makeFromArray(['test_cast' => ['test' => 'A']]);
+        $dto = $mock_b::make(['test_cast' => ['test' => 'A']]);
 
         $this->assertInstanceOf(DataTransferObject::class, $dto->test_cast);
         $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArray());
@@ -428,14 +425,14 @@ class DataTransferObjectTest extends TestCase
 
         $mock_b = new CastableDtoObject('');
 
-        $dto = $mock_b::makeFromArray(['test_cast' => new $mock_a('A')]);
+        $dto = $mock_b::make(['test_cast' => new $mock_a('A')]);
 
         $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArray());
     }
 
     public function test_it_can_cast_to_dto_array(): void
     {
-        $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
+        $dto = CastableArrayDtoObject::make(['test_cast' => [['test' => 'A'], ['test' => 'B']]]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(2, $dto->test_cast);
@@ -455,7 +452,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_an_empty_dto_array(): void
     {
-        $dto = CastableArrayDtoObject::makeFromArray(['test_cast' => []]);
+        $dto = CastableArrayDtoObject::make(['test_cast' => []]);
 
         $this->assertIsArray($dto->test_cast);
         $this->assertCount(0, $dto->test_cast);
@@ -468,7 +465,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_cast_to_empty_dto(): void
     {
-        $dto = CastableDtoObject::makeFromArray(['test_cast' => null]);
+        $dto = CastableDtoObject::make(['test_cast' => null]);
 
         $this->assertNull($dto->test_cast);
     }
@@ -479,7 +476,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->expectExceptionMessage('Unknown cast "test1234"');
 
-        $mock::makeFromArray(['test_cast' => []]);
+        $mock::make(['test_cast' => []]);
     }
 
     public function test_it_can_manipulate_rules(): void
@@ -573,7 +570,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertInstanceOf(
             JsonResource::class,
-            $mock->resource()
+            $mock->toJsonResource()
         );
     }
 

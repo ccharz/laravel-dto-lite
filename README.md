@@ -144,7 +144,7 @@ class Contact extends Model
 Casting arrays of Data Transfer Objects:
 
 ```php
-use Ccharz\DtoLite\AsDataTransferObjectCollection;
+use Ccharz\DtoLite\Casts\AsDataTransferObjectCollection;
 
 /**
  * Get the attributes that should be cast.

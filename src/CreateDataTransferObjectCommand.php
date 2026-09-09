@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ccharz\DtoLite;
 
 use Illuminate\Console\Command;
