@@ -219,7 +219,7 @@ trait IsDataTransferObject
             $rules[$field][] = 'array';
             $rules = static::applyCastRules($rules, $field.'.*', $cast);
         } elseif ($cast === 'datetime') {
-            $rules[$field][] = 'date';
+            $rules[$field][] = Rule::date();
         } elseif (is_a($cast, DataTransferObject::class, true)) {
             $rules = $cast::appendRules($rules, $field);
         } elseif (is_a($cast, BackedEnum::class, true)) {
@@ -327,6 +327,19 @@ trait IsDataTransferObject
     }
 
     /**
+     * @return class-string<DataTransferObjectJsonResourceContract>
+     */
+    public static function jsonResourceClass(): string
+    {
+        return DataTransferObjectJsonResource::class;
+    }
+
+    public function toJsonResource(): DataTransferObjectJsonResourceContract
+    {
+        return new (static::jsonResourceClass())($this);
+    }
+
+    /**
      * @return class-string<DataTransferObjectJsonResourceCollection>
      */
     public static function resourceCollectionClass(): string
@@ -334,12 +347,7 @@ trait IsDataTransferObject
         return DataTransferObjectJsonResourceCollection::class;
     }
 
-    public function toJsonResource(): DataTransferObjectJsonResourceContract
-    {
-        return new DataTransferObjectJsonResource($this);
-    }
-
-    public static function resourceCollection(mixed $resource): AnonymousResourceCollection
+    public static function collection(mixed $resource): AnonymousResourceCollection
     {
         return new (static::resourceCollectionClass())(
             $resource,
@@ -369,11 +377,10 @@ trait IsDataTransferObject
      * Convert the object to its JSON representation.
      *
      * @param  int  $options
-     * @return string
      */
-    public function toJson($options = 0)
+    public function toJson($options = 0): string
     {
-        return json_encode($this->jsonSerialize(), $options, JSON_THROW_ON_ERROR) ?: '{}';
+        return json_encode($this->jsonSerialize(), $options | JSON_THROW_ON_ERROR) ?: '{}';
     }
 
     /**
@@ -398,10 +405,7 @@ trait IsDataTransferObject
         return $this->toArray();
     }
 
-    /**
-     * @return JsonResponse
-     */
-    public function toResponse($request)
+    public function toResponse($request): JsonResponse
     {
         return new JsonResponse($this->toArray());
     }

@@ -19,8 +19,15 @@ enum ContactType : string {
     case PERSON = 'person';
     case COMPANY = 'company';
 }
+```
 
-readonly class ContactData extends DataTransferObject {
+```php
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+
+readonly class ContactData implements DataTransferObject {
+    use IsDataTransferObject;
+
     public function __construct(
         public string $name,
         public string $email,
@@ -41,6 +48,8 @@ enum ContactType : string {
 
 readonly class AddressData extends DataTransferObject
 {
+    use IsDataTransferObject;
+
     public function __construct(
         public ?string $country = null,
         public ?string $zip = null,
@@ -57,7 +66,9 @@ readonly class ContactData extends DataTransferObject {
     public function __construct(
         /** @var AddressData[] $addresses */
         public array $addresses,
+
         public DateTime $birthday,
+
         public ContactType $type,
     ) {}
 
@@ -101,10 +112,38 @@ public static function rules(?Request $request = null): ?array
 }
 ```
 
+You can customize the validation attributes and messages with the [messages()](https://laravel.com/framework/docs/validation#customizing-the-error-messages) and [attributes()](https://laravel.com/framework/docs/validation#customizing-the-validation-attributes) functions.
+
+To perform additional validation you can use the afterValidation function which passes the data to the [after function](https://laravel.com/framework/docs/validation#performing-additional-validation-on-form-requests) of the validator 
+
+
+```php
+use Illuminate\Http\Request;
+use Illuminate\Validation\Validator;
+
+
+/**
+ * @return array<callable|string>
+ */
+public static function afterValidation(?Request $request = null): array
+{
+    return [
+        function (Validator $validator) {
+            if ($this->somethingElseIsInvalid()) {
+                $validator->errors()->add(
+                    'field',
+                    'Something is wrong with this field!'
+                );
+            }
+        }
+    ];
+}
+```
 
 ### Automatic Injection
 
 With the help if laravels dependency injection, the dto can be used in a controller method function and is automatically filled with the **validated** input data from the request.
+
 ```php
 public function store(ContactData $contactData): RedirectResponse
 {
@@ -172,13 +211,13 @@ class ContactController extends Controller {
 }
 ```
 
-You can also return a [resource collection](https://laravel.com/docs/11.x/eloquent-resources#resource-collections) of data transfer objects
+You can also return a [resource collection](https://laravel.com/docs/13.x/eloquent-resources#resource-collections) of data transfer objects
 
 ```php
 class ContactController extends Controller {
     public function index()
     {
-        return ContactData::resourceCollection(Contact::paginate());
+        return ContactData::collection(Contact::paginate());
     }
 }
 ```

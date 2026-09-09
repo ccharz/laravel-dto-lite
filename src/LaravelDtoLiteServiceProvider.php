@@ -7,9 +7,11 @@ namespace Ccharz\DtoLite;
 use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use Override;
 
 class LaravelDtoLiteServiceProvider extends ServiceProvider
 {
+    #[Override]
     public function register(): void
     {
         $this->app->beforeResolving(
@@ -18,12 +20,22 @@ class LaravelDtoLiteServiceProvider extends ServiceProvider
              * @param  class-string<DataTransferObject>  $class
              * @param  array<string, mixed>  $parameters
              */
-            function ($class, $parameters, $app): void {
-                if ($app->has($class)) {
-                    return;
-                }
+            function (string $class, array $parameters, Application $app): void {
+                if (! $app->has($class)) {
+                    $app->bind(
+                        $class,
+                        /**
+                         * @return DataTransferObject
+                         */
+                        function (Application $container) use ($class): DataTransferObject {
+                            $request_data = $container->bound('request')
+                                ? $container->make('request')->all()
+                                : [];
 
-                $app->bind($class, fn (Application $container) => $class::make($container->request ?? []));
+                            return $class::make($request_data);
+                        }
+                    );
+                }
             }
         );
     }

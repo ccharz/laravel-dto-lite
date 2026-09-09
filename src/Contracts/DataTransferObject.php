@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Ccharz\DtoLite\Contracts;
 
+use ArrayAccess;
 use Ccharz\DtoLite\Exceptions\InvalidDataException;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use JsonSerializable;
 
 /**
  * @extends Arrayable<string,mixed>
  */
-interface DataTransferObject extends Arrayable, Castable, Jsonable, Responsable
+interface DataTransferObject extends Arrayable, Castable, Jsonable, JsonSerializable, Responsable
 {
     /**
      * @throws InvalidDataException
@@ -39,8 +42,29 @@ interface DataTransferObject extends Arrayable, Castable, Jsonable, Responsable
     public function toJsonResource(): DataTransferObjectJsonResource;
 
     /**
+     * Converts data into a data transfer object resource collection
+     */
+    public static function collection(mixed $resource): AnonymousResourceCollection;
+
+    /**
      * @param  array<string,array<int,mixed>>  $rules
      * @return array<string,array<int,mixed>>
      */
     public static function appendRules(array $rules, string $key): array;
+
+    /**
+     * @template TKey of array-key
+     * @template T of ArrayAccess<TKey,mixed>|array<TKey,mixed>
+     *
+     * @param  T  $array_map
+     * @param  TKey|null  $offset
+     * @return static[]
+     */
+    public static function mapToDtoArray(ArrayAccess|array $array_map, string|int|null $offset = null): array;
+
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
+    public static function appendArrayElementRules(array $rules, string $key): array;
 }

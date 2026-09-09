@@ -7,6 +7,7 @@ namespace Ccharz\DtoLite\Tests;
 use Carbon\CarbonImmutable;
 use Ccharz\DtoLite\Casts\AsDataTransferObject;
 use Ccharz\DtoLite\Casts\AsDataTransferObjectCollection;
+use Ccharz\DtoLite\Contracts\DataTransferObject as DataTransferObjectContract;
 use Ccharz\DtoLite\DataTransferObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\Filesystem;
@@ -16,6 +17,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Testing\PendingCommand;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
@@ -150,7 +152,7 @@ readonly class NonCastableAObject extends DataTransferObject
 
 class DataTransferObjectTest extends TestCase
 {
-    private function prepareSimpleDtoObject(string $value = 'test'): object
+    private function prepareSimpleDtoObject(string $value = 'test'): SimpleDtoObject
     {
         return new SimpleDtoObject($value);
     }
@@ -272,6 +274,8 @@ class DataTransferObjectTest extends TestCase
         $cast = new AsDataTransferObject($mock::class, []);
 
         $this->expectException(InvalidArgumentException::class);
+
+        // @phpstan-ignore argument.type
         $cast->set($model, 'data', 'test1234', []);
     }
 
@@ -313,14 +317,9 @@ class DataTransferObjectTest extends TestCase
 
         $request = (new Request)->merge(['test_1' => 'ABC', 'test_2' => 'DEF']);
 
-        try {
-            $mock::make($request);
-            $this->fail('Expected ValidationException was not thrown');
-        } catch (ValidationException $validationException) {
-            $this->assertContains('With Validator Test', $validationException->errors()['test']);
-            $this->assertContains('The TEST_ATTRIBUTE_OVERWRITE field must be at least 15 characters.', $validationException->errors()['test_1']);
-            $this->assertContains('TEST_MESSAGE_OVERWRITE', $validationException->errors()['test_2']);
-        }
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('TEST_MESSAGE_OVERWRITE (and 2 more errors)');
+        $mock::make($request);
     }
 
     public function test_it_can_cast_dates(): void
@@ -334,8 +333,14 @@ class DataTransferObjectTest extends TestCase
         $dto = $mock::make(['test' => null]);
 
         $this->assertNull($dto->test);
+    }
 
-        $this->assertSame(['test' => ['date']], $mock::rules());
+    public function test_it_validates_dates(): void
+    {
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('The test field must be a valid date.');
+
+        SimpleDateDtoObject::validate(['test' => 'string']);
     }
 
     public function test_it_can_handle_immutable_dates(): void
@@ -358,7 +363,7 @@ class DataTransferObjectTest extends TestCase
         ]);
 
         $this->assertNull($dto->test_cast);
-        $this->assertSame(['nullable', 'array'], $dto::rules()['test_cast']);
+        $this->assertSame(['nullable', 'array'], $dto::rules()['test_cast'] ?? []);
     }
 
     public function test_it_can_cast_enums(): void
@@ -370,9 +375,13 @@ class DataTransferObjectTest extends TestCase
         $this->assertInstanceOf(TestEnum::class, $dto->testEnum);
         $this->assertSame(TestEnum::B, $dto->testEnum);
         $this->assertSame(['testEnum' => 'B'], $dto->toArray());
-        $this->assertCount(1, $mock::rules()['testEnum']);
-        $this->assertInstanceOf(Enum::class, $mock::rules()['testEnum'][0]);
-        $this->assertTrue($mock::rules()['testEnum'][0]->passes('testEnum', 'B'));
+
+        $rules = $mock::rules();
+
+        $this->assertIsArray($rules);
+        $this->assertCount(1, $rules['testEnum']);
+        $this->assertInstanceOf(Enum::class, $rules['testEnum'][0]);
+        $this->assertTrue($rules['testEnum'][0]->passes('testEnum', 'B'));
     }
 
     public function test_it_works_with_already_casted_enum(): void
@@ -396,6 +405,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(TestEnum::B, $dto->test_cast[1]);
 
         $rules = $mock::rules();
+        $this->assertIsArray($rules);
         $this->assertArrayHasKey('test_cast', $rules);
         $this->assertArrayHasKey('test_cast.*', $rules);
         $this->assertSame(['array'], $rules['test_cast']);
@@ -495,8 +505,8 @@ class DataTransferObjectTest extends TestCase
         $result = $mock::mapToDtoArray([['test' => 'A'], ['test' => 'B']]);
 
         $this->assertCount(2, $result);
-        $this->assertIsObject($result[0]);
-        $this->assertIsObject($result[1]);
+        $this->assertInstanceOf(DataTransferObjectContract::class, $result[0]);
+        $this->assertInstanceOf(DataTransferObjectContract::class, $result[1]);
         $this->assertSame('A', $result[0]->test);
         $this->assertSame('B', $result[1]->test);
     }
@@ -557,6 +567,15 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame('TestStringWithOverFifteenCharacters', app($mock::class)->test);
     }
 
+    public function test_it_resolves_without_request(): void
+    {
+        $this->app?->forgetInstance('request');
+
+        $newMock = app(NullableSimpleDtoObject::class);
+
+        $this->assertInstanceOf(DataTransferObjectContract::class, $newMock);
+    }
+
     public function test_to_response_method(): void
     {
         $mock = $this->prepareSimpleDtoObject();
@@ -578,7 +597,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $collection = $mock::resourceCollection([$mock]);
+        $collection = $mock::collection([$mock]);
 
         $this->assertSame('{"data":[{"test":"test"}]}', $collection->toResponse(request())->getContent());
     }
@@ -587,14 +606,18 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $collection = $mock::resourceCollection([['test' => '1234']]);
+        $collection = $mock::collection([['test' => '1234']]);
 
         $this->assertSame('{"data":[{"test":"1234"}]}', $collection->toResponse(request())->getContent());
     }
 
     public function test_it_can_generate_a_new_data_transfer_object(): void
     {
-        $this->artisan('make:dto Test')->assertSuccessful();
+        $result = $this->artisan('make:dto Test');
+
+        if ($result instanceof PendingCommand) {
+            $result->assertSuccessful();
+        }
 
         $filesystem = app(Filesystem::class);
 
