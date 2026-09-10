@@ -386,7 +386,7 @@ trait IsDataTransferObject
     /**
      * @return array<string, mixed>
      */
-    public function toArray(): array
+    protected function toArrayHelper(?Request $request): array
     {
         $output = get_object_vars($this);
 
@@ -400,9 +400,17 @@ trait IsDataTransferObject
     /**
      * @return array<string, mixed>
      */
+    public function toArray(): array
+    {
+        return $this->toArrayHelper(null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function toArrayWithRequest(Request $request): array
     {
-        return $this->toArray();
+        return $this->toArrayHelper($request);
     }
 
     public function toResponse($request): JsonResponse
@@ -410,14 +418,14 @@ trait IsDataTransferObject
         return new JsonResponse($this->toArray());
     }
 
-    protected function simplify(mixed $value): mixed
+    protected function simplify(mixed $value, ?Request $request = null): mixed
     {
         return match (true) {
             $value instanceof UnitEnum => enum_value($value),
             $value instanceof CarbonInterface => $value->toJson(),
             $value instanceof DataTransferObject => $value->toArray(),
-            is_array($value) && array_is_list($value) => array_map(
-                fn ($element): mixed => $this->simplify($element),
+            is_array($value) => array_map(
+                fn ($element): mixed => $this->simplify($element, $request),
                 $value
             ),
             default => $value
