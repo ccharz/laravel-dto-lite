@@ -41,12 +41,15 @@ readonly class ContactData implements DataTransferObject {
 Casts for attributes can be defined similar to eloquent casts. It is also possible to define casts to an array
 
 ```php
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+
 enum ContactType : string {
     case PERSON = 'person';
     case COMPANY = 'company';
 }
 
-readonly class AddressData extends DataTransferObject
+readonly class AddressData implements DataTransferObject
 {
     use IsDataTransferObject;
 
@@ -249,11 +252,15 @@ You can use https://github.com/spatie/laravel-typescript-transformer to automati
 ```php
 namespace App\Data;
 
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-readonly class AddressData extends DataTransferObject
+readonly class AddressData implements DataTransferObject
 {
+    use IsDataTransferObject;
+    
     public function __construct(
         public readonly ?string $country = null,
         public readonly ?string $zip = null,

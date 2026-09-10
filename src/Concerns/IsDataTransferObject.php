@@ -27,6 +27,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 use UnitEnum;
 
@@ -39,6 +40,7 @@ trait IsDataTransferObject
 {
     /**
      * @throws InvalidDataException
+     * @throws ValidationException
      */
     public static function make(mixed $data): static
     {
@@ -106,6 +108,8 @@ trait IsDataTransferObject
     /**
      * @param  array<string|int,mixed>  $data
      * @return array<string|int,mixed>
+     *
+     * @throws ValidationException
      */
     public static function validate(array $data, ?Request $request = null): array
     {
@@ -257,6 +261,9 @@ trait IsDataTransferObject
         return static::makeFromArray($validated_data);
     }
 
+    /**
+     * @throws ValidationException
+     */
     protected static function makeFromRequest(Request $request): static
     {
         return static::makeFromRequestArray(
@@ -391,7 +398,7 @@ trait IsDataTransferObject
         $output = get_object_vars($this);
 
         foreach ($output as $key => $value) {
-            $output[$key] = $this->simplify($value);
+            $output[$key] = $this->simplify($value, $request);
         }
 
         return $output;
@@ -423,7 +430,9 @@ trait IsDataTransferObject
         return match (true) {
             $value instanceof UnitEnum => enum_value($value),
             $value instanceof CarbonInterface => $value->toJson(),
-            $value instanceof DataTransferObject => $value->toArray(),
+            $value instanceof DataTransferObject => $request instanceof Request
+                ? $value->toArrayWithRequest($request)
+                : $value->toArray(),
             is_array($value) => array_map(
                 fn ($element): mixed => $this->simplify($element, $request),
                 $value

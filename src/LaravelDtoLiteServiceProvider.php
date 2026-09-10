@@ -29,7 +29,7 @@ class LaravelDtoLiteServiceProvider extends ServiceProvider
                          */
                         function (Application $container) use ($class): DataTransferObject {
                             $request_data = $container->bound('request')
-                                ? $container->make('request')->all()
+                                ? $container->make('request')
                                 : [];
 
                             return $class::make($request_data);

@@ -318,9 +318,18 @@ class DataTransferObjectTest extends TestCase
 
         $request = (new Request)->merge(['test_1' => 'ABC', 'test_2' => 'DEF']);
 
-        $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('TEST_MESSAGE_OVERWRITE (and 2 more errors)');
-        $mock::make($request);
+        $exception = null;
+
+        try {
+            $mock::make($request);
+        } catch (ValidationException $validationException) {
+            $exception = $validationException;
+        }
+
+        $this->assertInstanceOf(ValidationException::class, $exception);
+        $this->assertContains('With Validator Test', $exception->errors()['test']);
+        $this->assertContains('The TEST_ATTRIBUTE_OVERWRITE field must be at least 15 characters.', $exception->errors()['test_1']);
+        $this->assertContains('TEST_MESSAGE_OVERWRITE', $exception->errors()['test_2']);
     }
 
     public function test_it_can_cast_dates(): void
@@ -422,6 +431,7 @@ class DataTransferObjectTest extends TestCase
 
         $this->assertInstanceOf(DataTransferObject::class, $dto->test_cast);
         $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArray());
+        $this->assertSame(['test_cast' => ['test' => 'A']], $dto->toArrayWithRequest(app(Request::class)));
         $this->assertSame(
             [
                 'test_cast' => ['array'],
@@ -555,7 +565,7 @@ class DataTransferObjectTest extends TestCase
         $mock::make(new stdClass);
     }
 
-    public function test_resolve_from_request(): void
+    public function test_it_resolves_from_request(): void
     {
         $mock = $this->prepareSimpleDtoObject();
 
@@ -567,6 +577,17 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame('TestStringWithOverFifteenCharacters', $newMock->test);
 
         $this->assertSame('TestStringWithOverFifteenCharacters', app($mock::class)->test);
+    }
+
+    public function test_it_validates_when_resolved_from_request(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        app(Request::class)->merge(['test' => 'A']);
+
+        $this->expectException(ValidationException::class);
+
+        app($mock::class);
     }
 
     public function test_it_resolves_without_request(): void

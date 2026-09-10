@@ -19,7 +19,7 @@ readonly class {{ CLASS }} extends DataTransferObject
     /**
      * @param  {{ MODEL }}  $model
      */
-    public static function makeFromModel(Model $model): static
+    protected static function makeFromModel(Model $model): static
     {
         return new static(
             $model->id,
