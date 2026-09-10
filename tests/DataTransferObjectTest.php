@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Testing\PendingCommand;
+use Illuminate\Validation\Rules\Date as RulesDate;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
@@ -337,6 +338,7 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_validates_dates(): void
     {
+        $this->assertInstanceOf(RulesDate::class, SimpleDateDtoObject::rules()['test'][0] ?? null);
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('The test field must be a valid date.');
 
@@ -632,6 +634,7 @@ class DataTransferObjectTest extends TestCase
 
         $model->setRawAttributes(['items' => '[{"test":"Test1"},{"test":"Test2"}]']);
 
+        /** @phpstan-ignore property.notFound */
         $this->assertInstanceOf(Collection::class, $model->items);
         $this->assertCount(2, $model->items);
 
@@ -644,6 +647,7 @@ class DataTransferObjectTest extends TestCase
 
         $model->setRawAttributes(['items' => '{"test":"Test"}']);
 
+        /** @phpstan-ignore property.notFound */
         $this->assertNull($model->items);
     }
 
@@ -653,6 +657,7 @@ class DataTransferObjectTest extends TestCase
 
         $model->setRawAttributes(['items' => null]);
 
+        /** @phpstan-ignore property.notFound */
         $this->assertNull($model->items);
     }
 
@@ -660,6 +665,7 @@ class DataTransferObjectTest extends TestCase
     {
         $model = $this->prepareCastModel();
 
+        /** @phpstan-ignore property.notFound */
         $model->items = null;
 
         $this->assertNull($model->items);
