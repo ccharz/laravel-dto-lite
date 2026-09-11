@@ -5,9 +5,7 @@ namespace {{ NAMESPACE }};
 use Ccharz\DtoLite\DataTransferObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-
-#[TypeScript]
+{{ TYPESCRIPT_TRANSFORMER }}
 readonly class {{ CLASS }} extends DataTransferObject
 {
     public function __construct(

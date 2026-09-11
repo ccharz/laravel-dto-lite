@@ -24,6 +24,9 @@
         "orchestra/testbench": "^8.0||^9.0||^10.0||^11.0",
         "rector/rector": "^2.0"
     },
+    "suggest": {
+        "spatie/laravel-typescript-transformer": "Install to easily convert DTOs to typescript"
+    },
     "autoload": {
         "psr-4": {
             "Ccharz\\DtoLite\\": "src/"

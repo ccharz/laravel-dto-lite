@@ -25,6 +25,11 @@ interface DataTransferObject extends Arrayable, Castable, Jsonable, JsonSerializ
     public static function make(mixed $data): static;
 
     /**
+     * @return array<string,array<int,mixed>>
+     */
+    public static function rules(?Request $request = null): array;
+
+    /**
      * Convert the data transfer object into something JSON serializable.
      *
      * @return array<string, mixed>

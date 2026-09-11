@@ -35,7 +35,7 @@ readonly class SimpleDtoObject extends DataTransferObject
 {
     public function __construct(public string $test) {}
 
-    public static function rules(?Request $request = null): ?array
+    public static function rules(?Request $request = null): array
     {
         return ['test' => ['min:15']];
     }
@@ -45,7 +45,7 @@ readonly class ComplexValidationDtoObject extends DataTransferObject
 {
     public function __construct(public string $test_1, public string $test_2) {}
 
-    public static function rules(?Request $request = null): ?array
+    public static function rules(?Request $request = null): array
     {
         return ['test_2' => ['min:15'], 'test_1' => ['min:15']];
     }
@@ -75,7 +75,7 @@ readonly class SimpleDateDtoObject extends DataTransferObject
 {
     public function __construct(public ?Carbon $test) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test' => 'datetime'];
     }
@@ -85,7 +85,7 @@ readonly class SimpleImmutableDateDtoObject extends DataTransferObject
 {
     public function __construct(public ?CarbonImmutable $test) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test' => 'datetime'];
     }
@@ -95,7 +95,7 @@ readonly class SimpleEnumDtoObject extends DataTransferObject
 {
     public function __construct(public TestEnum $testEnum) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['testEnum' => TestEnum::class];
     }
@@ -105,7 +105,7 @@ readonly class SimpleEnumArrayDtoObject extends DataTransferObject
 {
     public function __construct(public mixed $test_cast) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test_cast' => TestEnum::class.'[]'];
     }
@@ -115,7 +115,7 @@ readonly class CastableDtoObject extends DataTransferObject
 {
     public function __construct(public mixed $test_cast) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test_cast' => SimpleDtoObject::class];
     }
@@ -125,7 +125,7 @@ readonly class CastableArrayDtoObject extends DataTransferObject
 {
     public function __construct(public mixed $test_cast) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test_cast' => SimpleDtoObject::class.'[]'];
     }
@@ -135,7 +135,7 @@ readonly class CastableNullableArrayDtoObject extends DataTransferObject
 {
     public function __construct(public mixed $test_cast) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test_cast' => '?'.SimpleDtoObject::class.'[]'];
     }
@@ -145,7 +145,7 @@ readonly class NonCastableAObject extends DataTransferObject
 {
     public function __construct(public mixed $test_cast) {}
 
-    public static function casts(): ?array
+    public static function casts(): array
     {
         return ['test_cast' => 'test1234'];
     }
@@ -349,7 +349,7 @@ class DataTransferObjectTest extends TestCase
     {
         $this->assertInstanceOf(RulesDate::class, SimpleDateDtoObject::rules()['test'][0] ?? null);
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('The test field must be a valid date.');
+        $this->expectExceptionMessageIsOrContains('The test field must be a valid date.');
 
         SimpleDateDtoObject::validate(['test' => 'string']);
     }
@@ -389,7 +389,6 @@ class DataTransferObjectTest extends TestCase
 
         $rules = $mock::rules();
 
-        $this->assertIsArray($rules);
         $this->assertCount(1, $rules['testEnum']);
         $this->assertInstanceOf(Enum::class, $rules['testEnum'][0]);
         $this->assertTrue($rules['testEnum'][0]->passes('testEnum', 'B'));
@@ -416,7 +415,7 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(TestEnum::B, $dto->test_cast[1]);
 
         $rules = $mock::rules();
-        $this->assertIsArray($rules);
+
         $this->assertArrayHasKey('test_cast', $rules);
         $this->assertArrayHasKey('test_cast.*', $rules);
         $this->assertSame(['array'], $rules['test_cast']);
@@ -645,6 +644,17 @@ class DataTransferObjectTest extends TestCase
         $filesystem = app(Filesystem::class);
 
         $this->assertTrue($filesystem->exists(base_path('app/Data/TestData.php')));
+
+        $filesystem->deleteDirectory(base_path('app/Data'));
+    }
+
+    public function test_it_can_generate_a_new_data_transfer_object_with_typescript_transformer(): void
+    {
+        $this->artisan('make:dto Test --typescript-transformer');
+
+        $filesystem = app(Filesystem::class);
+
+        $this->assertStringContainsString('#[TypeScript]', $filesystem->get(base_path('app/Data/TestData.php')));
 
         $filesystem->deleteDirectory(base_path('app/Data'));
     }

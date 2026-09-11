@@ -64,17 +64,17 @@ trait IsDataTransferObject
     }
 
     /**
-     * @return null|array<string,string>
+     * @return array<string,string>
      */
-    public static function casts(): ?array
+    public static function casts(): array
     {
-        return null;
+        return [];
     }
 
     /**
-     * @return null|array<string,array<int,mixed>>
+     * @return array<string,array<int,mixed>>
      */
-    public static function rules(?Request $request = null): ?array
+    public static function rules(?Request $request = null): array
     {
         return static::castRules();
     }
@@ -113,7 +113,7 @@ trait IsDataTransferObject
      */
     public static function validate(array $data, ?Request $request = null): array
     {
-        $validator = ValidatorFacade::make($data, static::rules($request) ?? [], static::messages($request), static::attributes($request));
+        $validator = ValidatorFacade::make($data, static::rules($request), static::messages($request), static::attributes($request));
 
         static::withValidator($validator, $request);
 
@@ -130,7 +130,7 @@ trait IsDataTransferObject
     {
         $staticRules = static::rules();
 
-        if ($staticRules !== null && $staticRules !== []) {
+        if ($staticRules !== []) {
             $rules[$key][] = 'array';
 
             foreach ($staticRules as $field => $value) {
@@ -239,9 +239,9 @@ trait IsDataTransferObject
      */
     public static function castRules(?array $except = null): array
     {
-        $casts = static::casts() ?? [];
-
         $rules = [];
+
+        $casts = static::casts();
 
         foreach ($casts as $field => $cast) {
             if (is_null($except) || ! in_array($field, $except)) {
@@ -285,11 +285,11 @@ trait IsDataTransferObject
      */
     protected static function makeFromArray(array $data): static
     {
-        if (($casts = static::casts()) !== null && ($casts = static::casts()) !== []) {
-            foreach ($casts as $field => $cast) {
-                if (array_key_exists($field, $data)) {
-                    $data[$field] = static::applyCast($data[$field], $cast);
-                }
+        $casts = static::casts();
+
+        foreach ($casts as $field => $cast) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = static::applyCast($data[$field], $cast);
             }
         }
 
