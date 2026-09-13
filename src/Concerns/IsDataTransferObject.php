@@ -1,0 +1,484 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Ccharz\DtoLite\Concerns;
+
+use ArrayAccess;
+use BackedEnum;
+use Carbon\CarbonInterface;
+use Carbon\Exceptions\InvalidFormatException;
+use Carbon\Month;
+use Carbon\WeekDay;
+use Ccharz\DtoLite\Casts\AsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObjectJsonResource as DataTransferObjectJsonResourceContract;
+use Ccharz\DtoLite\DataTransferObjectJsonResource;
+use Ccharz\DtoLite\DataTransferObjectJsonResourceCollection;
+use Ccharz\DtoLite\Exceptions\InvalidCastException;
+use Ccharz\DtoLite\Exceptions\InvalidDataException;
+use DateTimeInterface;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Contracts\Support\Jsonable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
+use JsonException;
+use UnitEnum;
+
+use function Illuminate\Support\enum_value;
+
+/**
+ * @phpstan-require-implements DataTransferObject
+ */
+trait IsDataTransferObject
+{
+    /**
+     * @throws InvalidDataException
+     * @throws ValidationException
+     */
+    public static function make(mixed $data): static
+    {
+        if ($data instanceof Model) {
+            return static::makeFromModel($data);
+        }
+
+        if ($data instanceof Request) {
+            return static::makeFromRequest($data);
+        }
+
+        if (is_null($data) || is_string($data)) {
+            return static::makeFromJson($data, JSON_THROW_ON_ERROR);
+        }
+
+        if (is_array($data)) {
+            return static::makeFromArray($data);
+        }
+
+        throw new InvalidDataException(sprintf('Cannot make %s from %s.', static::class, get_debug_type($data)));
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public static function casts(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<string,array<int,mixed>>
+     */
+    public static function rules(?Request $request = null): array
+    {
+        return static::castRules(request: $request);
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public static function attributes(?Request $request = null): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    public static function messages(?Request $request = null): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<callable|string>
+     */
+    public static function afterValidation(?Request $request = null): array
+    {
+        return [];
+    }
+
+    public static function withValidator(Validator $validator, ?Request $request = null): void {}
+
+    /**
+     * @param  array<string|int,mixed>  $data
+     * @return array<string|int,mixed>
+     *
+     * @throws ValidationException
+     */
+    public static function validate(array $data, ?Request $request = null): array
+    {
+        $validator = ValidatorFacade::make($data, static::rules($request), static::messages($request), static::attributes($request));
+
+        static::withValidator($validator, $request);
+
+        return $validator
+            ->after(static::afterValidation($request))
+            ->validated();
+    }
+
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
+    public static function appendRules(array $rules, string $key, ?Request $request = null): array
+    {
+        $staticRules = static::rules($request);
+
+        if ($staticRules !== []) {
+            $rules[$key][] = 'array';
+
+            foreach ($staticRules as $field => $value) {
+                $rules[$key.'.'.$field] = $value;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
+    public static function appendArrayElementRules(array $rules, string $key, ?Request $request = null): array
+    {
+        $rules[$key] = ['array'];
+
+        return static::appendRules($rules, $key.'.*', $request);
+    }
+
+    /**
+     * Request input arrives keyed and can be out of order (items.2, items.0) — normalise
+     * that to a list. Arrays that are already lists, or that are genuinely keyed by string,
+     * are left untouched.
+     *
+     * @param  array<array-key,mixed>  $data
+     * @return array<array-key,mixed>
+     */
+    protected static function normalizeCastArray(array $data): array
+    {
+        return $data;
+    }
+
+    /**
+     * @throws InvalidCastException
+     */
+    protected static function applyCast(mixed $data, string $cast): mixed
+    {
+        $nullable = false;
+
+        if (str_starts_with($cast, '?')) {
+            $nullable = true;
+            $cast = substr($cast, 1);
+        }
+
+        if (str_ends_with($cast, '[]')) {
+            if ($data === null) {
+                if ($nullable) {
+                    return null;
+                }
+
+                return [];
+            }
+
+            if (! is_array($data)) {
+                throw new InvalidCastException(
+                    sprintf('Expected an array for cast [%s], got %s.', $cast, get_debug_type($data)));
+            }
+
+            $data = static::normalizeCastArray($data);
+
+            return array_map(
+                fn (mixed $element): mixed => static::applyCast($element, substr($cast, 0, -2)),
+                $data
+            );
+        }
+
+        if ($cast === 'datetime') {
+            if ($data === null) {
+                return null;
+            }
+
+            if (! ($data instanceof WeekDay || $data instanceof Month || $data instanceof DateTimeInterface || is_numeric($data) || is_string($data))) {
+                throw new InvalidCastException(sprintf('Cannot cast %s to a date.', get_debug_type($data)));
+            }
+
+            return Date::parse($data);
+        }
+
+        if (is_a($cast, DataTransferObject::class, true)) {
+            if ($data instanceof $cast) {
+                return $data;
+            }
+
+            return is_array($data) ? $cast::make($data) : null;
+        }
+
+        if (is_a($cast, BackedEnum::class, true)) {
+            if (is_null($data) || $data instanceof $cast) {
+                return $data;
+            }
+
+            if (is_string($data) || is_int($data)) {
+                return $cast::tryFrom($data)
+                    ?? throw new InvalidCastException(
+                        sprintf('Value [%s] is not a valid case of enum [%s].', $data, $cast)
+                    );
+            }
+
+            throw new InvalidCastException(
+                sprintf('Cannot cast %s to enum [%s].', get_debug_type($data), $cast)
+            );
+
+        }
+
+        throw new InvalidCastException('Unknown cast "'.$cast.'"');
+    }
+
+    /**
+     * @param  array<string,array<int,mixed>>  $rules
+     * @return array<string,array<int,mixed>>
+     */
+    protected static function applyCastRules(array $rules, string $field, string $cast, ?Request $request = null): array
+    {
+        if (str_starts_with($cast, '?')) {
+            $rules[$field][] = 'nullable';
+            $cast = substr($cast, 1);
+        }
+
+        if (str_ends_with($cast, '[]')) {
+            $cast = substr($cast, 0, -2);
+            $rules[$field][] = 'array';
+            $rules = static::applyCastRules($rules, $field.'.*', $cast, $request);
+        } elseif ($cast === 'datetime') {
+            $rules[$field][] = Rule::date();
+        } elseif (is_a($cast, DataTransferObject::class, true)) {
+            $rules = $cast::appendRules($rules, $field);
+        } elseif (is_a($cast, BackedEnum::class, true)) {
+            $rules[$field][] = Rule::enum($cast);
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param  string[]|null  $except
+     * @return array<string,array<int,mixed>>
+     */
+    public static function castRules(?array $except = null, ?Request $request = null): array
+    {
+        $rules = [];
+
+        $casts = static::casts();
+
+        foreach ($casts as $field => $cast) {
+            if (is_null($except) || ! in_array($field, $except)) {
+                $rules[$field] = [];
+                $rules = static::applyCastRules($rules, $field, $cast, $request);
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param  array<string|int,mixed>  $validatedData
+     */
+    protected static function makeFromRequestArray(array $validatedData, ?Request $request = null): static
+    {
+        return static::makeFromArray($validatedData);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    protected static function makeFromRequest(Request $request): static
+    {
+        return static::makeFromRequestArray(
+            static::validate($request->all(), $request),
+            $request
+        );
+    }
+
+    protected static function makeFromModel(Model $model): static
+    {
+        return static::makeFromArray($model->toArray());
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     *
+     * @throws InvalidFormatException
+     * @throws InvalidCastException
+     */
+    protected static function makeFromArray(array $data): static
+    {
+        $casts = static::casts();
+
+        foreach ($casts as $field => $cast) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = static::applyCast($data[$field], $cast);
+            }
+        }
+
+        /* @phpstan-ignore-next-line */
+        return new static(...$data);
+    }
+
+    /**
+     * @throws InvalidDataException
+     */
+    protected static function makeFromJson(?string $json, int $options = 0): static
+    {
+        try {
+            $decoded = $json !== null && $json !== ''
+                ? json_decode($json, true, 512, $options)
+                : [];
+        } catch (JsonException $jsonException) {
+            throw new InvalidDataException('Invalid JSON: '.$jsonException->getMessage(), $jsonException->getCode(), previous: $jsonException);
+        }
+
+        return static::makeFromArray(is_array($decoded) ? $decoded : []);
+    }
+
+    /**
+     * @param  iterable<array-key,mixed>  $array_map
+     * @return static[]
+     */
+    public static function mapToDtoArray(iterable $array_map, string|int|null $offset = null): array
+    {
+        if ($offset !== null) {
+            if (! is_array($array_map) && ! $array_map instanceof ArrayAccess) {
+                throw new InvalidDataException(sprintf(
+                    'Cannot look up offset [%s] on %s — it is not array accessible.', $offset, get_debug_type($array_map)
+                ));
+            }
+
+            $array_map = $array_map[$offset] ?? null;
+
+            $array_map = is_iterable($array_map) ? $array_map : [];
+        }
+
+        $output = [];
+
+        foreach ($array_map as $array_element) {
+            $output[] = static::make($array_element);
+        }
+
+        return $output;
+    }
+
+    /**
+     * @return class-string<DataTransferObjectJsonResourceContract>
+     */
+    public static function jsonResourceClass(): string
+    {
+        return DataTransferObjectJsonResource::class;
+    }
+
+    public function toJsonResource(): DataTransferObjectJsonResourceContract
+    {
+        return new (static::jsonResourceClass())($this);
+    }
+
+    /**
+     * @return class-string<DataTransferObjectJsonResourceCollection>
+     */
+    public static function resourceCollectionClass(): string
+    {
+        return DataTransferObjectJsonResourceCollection::class;
+    }
+
+    public static function collection(mixed $resource): AnonymousResourceCollection
+    {
+        return new (static::resourceCollectionClass())(
+            $resource,
+            static::jsonResourceClass(),
+            static::class
+        );
+    }
+
+    /**
+     * @param  string[]  $arguments
+     * @return CastsAttributes<DataTransferObject|null, array<string,mixed>|Jsonable|null>
+     */
+    public static function castUsing(array $arguments): CastsAttributes
+    {
+        return new AsDataTransferObject(static::class, $arguments); // @phpstan-ignore return.type
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return get_object_vars($this);
+    }
+
+    /**
+     * Convert the object to its JSON representation.
+     *
+     * @param  int  $options
+     */
+    public function toJson($options = 0): string
+    {
+        return json_encode($this->jsonSerialize(), $options | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function toArrayHelper(?Request $request): array
+    {
+        $output = get_object_vars($this);
+
+        foreach ($output as $key => $value) {
+            $output[$key] = $this->simplify($value, $request);
+        }
+
+        return $output;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return $this->toArrayHelper(null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArrayWithRequest(Request $request): array
+    {
+        return $this->toArrayHelper($request);
+    }
+
+    public function toResponse($request): JsonResponse
+    {
+        return new JsonResponse($this->toArray());
+    }
+
+    protected function simplify(mixed $value, ?Request $request = null): mixed
+    {
+        return match (true) {
+            $value instanceof UnitEnum => enum_value($value),
+            $value instanceof CarbonInterface => $value->toJson(),
+            $value instanceof DataTransferObject => $request instanceof Request
+                ? $value->toArrayWithRequest($request)
+                : $value->toArray(),
+            is_array($value) => array_map(
+                fn ($element): mixed => $this->simplify($element, $request),
+                $value
+            ),
+            default => $value
+        };
+    }
+}

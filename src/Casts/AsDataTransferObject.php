@@ -1,7 +1,10 @@
 <?php
 
-namespace Ccharz\DtoLite;
+declare(strict_types=1);
 
+namespace Ccharz\DtoLite\Casts;
+
+use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Support\Jsonable;
 use Illuminate\Database\Eloquent\Model;
@@ -10,9 +13,10 @@ use InvalidArgumentException;
 /**
  * @implements CastsAttributes<DataTransferObject|null, array<string,mixed>|Jsonable|null>
  */
-class DataTransferObjectCast implements CastsAttributes
+class AsDataTransferObject implements CastsAttributes
 {
     /**
+     * @param  class-string<DataTransferObject>  $class
      * @param  string[]  $parameters
      */
     public function __construct(
@@ -32,7 +36,9 @@ class DataTransferObjectCast implements CastsAttributes
                 return null;
             }
 
-            throw new InvalidArgumentException($key.' is not a string');
+            throw new InvalidArgumentException(
+                sprintf('Attribute [%s] is null, but the [%s] cast is not marked as nullable.', $key, $this->class)
+            );
         }
 
         return $this->class::make($value);
@@ -53,6 +59,7 @@ class DataTransferObjectCast implements CastsAttributes
             $value = $this->class::make($value);
         }
 
+        // @phpstan-ignore instanceof.alwaysTrue
         if (! $value instanceof Jsonable) {
             throw new InvalidArgumentException(sprintf('Value must be of type [%s], array, or null', $this->class));
         }

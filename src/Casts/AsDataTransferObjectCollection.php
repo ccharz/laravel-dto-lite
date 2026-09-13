@@ -1,13 +1,16 @@
 <?php
 
-namespace Ccharz\DtoLite;
+declare(strict_types=1);
 
+namespace Ccharz\DtoLite\Casts;
+
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+use Ccharz\DtoLite\Exceptions\InvalidCastException;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Database\Eloquent\SerializesCastableAttributes;
 use Illuminate\Database\Eloquent\Casts\Json;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
 class AsDataTransferObjectCollection implements Castable
@@ -15,7 +18,7 @@ class AsDataTransferObjectCollection implements Castable
     /**
      * Get the caster class to use when casting from / to this cast target.
      *
-     * @template TDataTransferObject of \Ccharz\DtoLite\DataTransferObject
+     * @template TDataTransferObject of DataTransferObject
      *
      * @param  array{class-string<TDataTransferObject>}  $arguments
      * @return CastsAttributes<Collection<array-key, TDataTransferObject>, iterable<TDataTransferObject>>
@@ -37,8 +40,10 @@ class AsDataTransferObjectCollection implements Castable
 
                 $data = Json::decode($attributes[$key]);
 
-                if (! is_array($data) || ! Arr::isList($data)) {
-                    return;
+                if (! is_array($data) || ! array_is_list($data)) {
+                    throw new InvalidCastException(sprintf(
+                        'Attribute [%s] does not contain a JSON list of [%s].', $key, $this->arguments[0]
+                    ));
                 }
 
                 $dataTransferObjectClass = $this->arguments[0];

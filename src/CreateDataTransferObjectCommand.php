@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Ccharz\DtoLite;
 
 use Illuminate\Console\Command;
@@ -14,7 +16,7 @@ class CreateDataTransferObjectCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'make:dto {model} {--directory=app/Data} {--data-namespace=App\\Data} {--model-namespace=App\\Models}';
+    protected $signature = 'make:dto {model} {--directory=app/Data} {--data-namespace=App\\Data} {--model-namespace=App\\Models} {--typescript-transformer}';
 
     /**
      * The console command description.
@@ -36,11 +38,13 @@ class CreateDataTransferObjectCommand extends Command
 
         $directory = $this->option('directory') ?? 'app/Data';
 
+        $with_typescript_transformer = $this->option('typescript-transformer') === true;
+
         assert(is_string($directory) && is_string($model) && is_string($data_namespace) && is_string($model_namespace));
 
         $stub = $filesystem->get($this->getStubPath());
 
-        $replacements = $this->replacements($model, $data_namespace, $model_namespace);
+        $replacements = $this->replacements($model, $data_namespace, $model_namespace, $with_typescript_transformer);
 
         foreach ($replacements as $key => $value) {
             $stub = str_replace('{{ '.$key.' }}', $value, $stub);
@@ -65,13 +69,18 @@ class CreateDataTransferObjectCommand extends Command
     /**
      * @return array<string,string>
      */
-    public function replacements(string $model, string $data_namespace, string $model_namespace): array
+    public function replacements(string $model, string $data_namespace, string $model_namespace, bool $with_typescript_transformer): array
     {
         return [
             'CLASS' => Str::ucfirst($model).'Data',
             'NAMESPACE' => $data_namespace,
             'MODEL' => '\\'.trim($model_namespace, '\\').'\\'.$model,
             'VARIABLES' => implode(PHP_EOL, []),
+            'TYPESCRIPT_TRANSFORMER' => implode(PHP_EOL, $with_typescript_transformer ? [
+                'use Spatie\TypeScriptTransformer\Attributes\TypeScript;',
+                '',
+                '#[TypeScript]',
+            ] : []),
         ];
     }
 }

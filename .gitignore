@@ -27,3 +27,5 @@ composer.lock
 .phpunit.cache
 
 .DS_Store
+
+.pint.result.cache

@@ -1,8 +1,8 @@
 # Laravel Data Transfer Object Lite
 
-This is a basic implementation of the data transfer object (DTO) concept. The idea is to describe input and output of data in one simple basic php class file. It is meant to replace FormRequests and Resources and can also be used to automatically generate typescript definitions.
+This is a basic implementation of the data transfer object (DTO) concept. The idea is to describe input and output of data in one simple basic PHP class file. It is meant to replace FormRequests and Resources and can also be used to automatically generate TypeScript definitions.
 
-This package is similar to the [Laravel Data](https://spatie.be/docs/laravel-data) Package from Spatie. The main difference it contains no reflection class magic and only provides the basic functionalities.
+This package is similar to the [Laravel Data](https://spatie.be/docs/laravel-data) Package from Spatie. The main difference is that it contains no reflection class magic and only provides the basic functionalities.
 
 ## Installation
 
@@ -12,15 +12,21 @@ composer require ccharz/laravel-dto-lite
 
 ## Usage
 
-
 ### Example DTO
 ```php
-enum ContactType : string {
+enum ContactType: string {
     case PERSON = 'person';
     case COMPANY = 'company';
 }
+```
 
-readonly class ContactData extends DataTransferObject {
+```php
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+
+readonly class ContactData implements DataTransferObject {
+    use IsDataTransferObject;
+
     public function __construct(
         public string $name,
         public string $email,
@@ -34,13 +40,18 @@ readonly class ContactData extends DataTransferObject {
 Casts for attributes can be defined similar to eloquent casts. It is also possible to define casts to an array
 
 ```php
-enum ContactType : string {
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
+
+enum ContactType: string {
     case PERSON = 'person';
     case COMPANY = 'company';
 }
 
-readonly class AddressData extends DataTransferObject
+readonly class AddressData implements DataTransferObject
 {
+    use IsDataTransferObject;
+
     public function __construct(
         public ?string $country = null,
         public ?string $zip = null,
@@ -53,11 +64,16 @@ readonly class AddressData extends DataTransferObject
     }
 }
 
-readonly class ContactData extends DataTransferObject {
+readonly class ContactData implements DataTransferObject
+{
+    use IsDataTransferObject;
+
     public function __construct(
         /** @var AddressData[] $addresses */
         public array $addresses,
+
         public DateTime $birthday,
+
         public ContactType $type,
     ) {}
 
@@ -66,7 +82,7 @@ readonly class ContactData extends DataTransferObject {
         return [
             'addresses' => AddressData::class . '[]',
             'birthday' => 'datetime',
-            'type' =>  ContactType::class,
+            'type' => ContactType::class,
         ];
     }
 }
@@ -81,7 +97,7 @@ If a rules method exists, validation is automatically performed when creating a 
 ```php
 use Illuminate\Http\Request;
 
-public static function rules(?Request $request = null): ?array
+public static function rules(?Request $request = null): array
 {
     return ['prename' => 'min:2'];
 }
@@ -93,18 +109,43 @@ You can also inject the rules from casts in your rules:
 ```php
 use Illuminate\Http\Request;
 
-public static function rules(?Request $request = null): ?array
+public static function rules(?Request $request = null): array
 {
     return [
-        ...parent::castRules(),
+        ...static::castRules(),
     ];
 }
 ```
 
+You can customize the validation attributes and messages with the [messages()](https://laravel.com/framework/docs/validation#customizing-the-error-messages) and [attributes()](https://laravel.com/framework/docs/validation#customizing-the-validation-attributes) functions.
+
+To perform additional validation you can use the afterValidation function which passes the data to the [after function](https://laravel.com/framework/docs/validation#performing-additional-validation-on-form-requests) of the validator.
+
+
+```php
+use Illuminate\Http\Request;
+use Illuminate\Validation\Validator;
+
+
+/**
+ * @return array<callable|string>
+ */
+public static function afterValidation(?Request $request = null): array
+{
+    return [
+        function (Validator $validator) {
+             if ($validator->errors()->isEmpty() && ! static::isConsistent($validator->validated())) {
+                 $validator->errors()->add('field', 'Something is wrong with this field!');
+             }
+        }
+    ];
+}
+```
 
 ### Automatic Injection
 
-With the help if laravels dependency injection, the dto can be used in a controller method function and is automatically filled with the **validated** input data from the request.
+With the help of Laravel's dependency injection, the DTO can be used in a controller method function and is automatically filled with the **validated** input data from the request.
+
 ```php
 public function store(ContactData $contactData): RedirectResponse
 {
@@ -144,7 +185,7 @@ class Contact extends Model
 Casting arrays of Data Transfer Objects:
 
 ```php
-use Ccharz\DtoLite\AsDataTransferObjectCollection;
+use Ccharz\DtoLite\Casts\AsDataTransferObjectCollection;
 
 /**
  * Get the attributes that should be cast.
@@ -161,7 +202,7 @@ protected function casts(): array
 
 ### Response
 
-Data Transfer Objects are automatically converted to an response if returned from a controller
+Data Transfer Objects are automatically converted to a response if returned from a controller
 
 ```php
 class ContactController extends Controller {
@@ -172,13 +213,13 @@ class ContactController extends Controller {
 }
 ```
 
-You can also return a [resource collection](https://laravel.com/docs/11.x/eloquent-resources#resource-collections) of data transfer objects
+You can also return a [resource collection](https://laravel.com/docs/13.x/eloquent-resources#resource-collections) of data transfer objects
 
 ```php
 class ContactController extends Controller {
     public function index()
     {
-        return ContactData::resourceCollection(Contact::paginate());
+        return ContactData::collection(Contact::paginate());
     }
 }
 ```
@@ -203,18 +244,22 @@ AddressData::mapToDtoArray($addresses);
 ```
 
 
-## Typescript Definitions
+## TypeScript Definitions
 
-You can use https://github.com/spatie/laravel-typescript-transformer to automatically generate typescript definitions for your Data Transfer Objects and Enums.
+You can use [spatie/laravel-typescript-transformer](https://github.com/spatie/laravel-typescript-transformer) to automatically generate TypeScript definitions for your Data Transfer Objects and Enums.
 
 ```php
 namespace App\Data;
 
+use Ccharz\DtoLite\Concerns\IsDataTransferObject;
+use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 #[TypeScript]
-readonly class AddressData extends DataTransferObject
+readonly class AddressData implements DataTransferObject
 {
+    use IsDataTransferObject;
+
     public function __construct(
         public readonly ?string $country = null,
         public readonly ?string $zip = null,
@@ -228,7 +273,7 @@ readonly class AddressData extends DataTransferObject
 }
 ```
 
-generates to the following typescript definition:
+generates to the following TypeScript definition:
 
 ```js
 declare namespace App.Data {

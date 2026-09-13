@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   php-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       COMPOSER_NO_INTERACTION: 1
@@ -12,11 +12,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php: [8.2, 8.3, 8.4, 8.5]
-        laravel: [10, 11, 12, 13]
-        exclude:
-          - php: 8.2
-            laravel: 13
+        php: [8.3, 8.4, 8.5]
+        laravel: [12, 13]
 
     name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }}
 
