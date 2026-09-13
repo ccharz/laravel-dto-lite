@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ccharz\DtoLite;
 
+use Ccharz\DtoLite\Contracts\DataTransferObject;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;

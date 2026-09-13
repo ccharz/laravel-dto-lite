@@ -32,3 +32,27 @@ class ContactData implements DataTransferObject {
 
 To keep the API similar to Laravel the method to generate a collection of data transfer objects was renamed to `collection()`
 
+### `casts()` and `rules()` no longer return `null`
+
+Both now return `array` instead of `?array`.
+
+### Casts moved to the `Casts` namespace
+
+ - `Ccharz\DtoLite\DataTransferObjectCast` → `Ccharz\DtoLite\Casts\AsDataTransferObject`
+ - `Ccharz\DtoLite\AsDataTransferObjectCollection` → `Ccharz\DtoLite\Casts\AsDataTransferObjectCollection`
+
+### `mapToDtoArray()` accepts `iterable`
+
+The first parameter was widened from `ArrayAccess|array` to `iterable`.
+
+### Rules pass request
+
+All methods now pass the request down
+
+### Ksort removed
+
+The ksort from the array cast was removed - we added a normalizeCastArray method where you can add the ksort to keep current behaviour.
+
+### Cast Exceptions
+
+Casting now throws if an unexpected value occurs.

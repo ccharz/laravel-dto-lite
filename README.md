@@ -132,12 +132,9 @@ public static function afterValidation(?Request $request = null): array
 {
     return [
         function (Validator $validator) {
-            if ($this->somethingElseIsInvalid()) {
-                $validator->errors()->add(
-                    'field',
-                    'Something is wrong with this field!'
-                );
-            }
+             if ($validator->errors()->isEmpty() && ! static::isConsistent($validator->validated())) {
+                 $validator->errors()->add('field', 'Something is wrong with this field!');
+             }
         }
     ];
 }

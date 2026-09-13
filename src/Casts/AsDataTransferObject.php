@@ -36,7 +36,9 @@ class AsDataTransferObject implements CastsAttributes
                 return null;
             }
 
-            throw new InvalidArgumentException($key.' is not a string');
+            throw new InvalidArgumentException(
+                sprintf('Attribute [%s] is null, but the [%s] cast is not marked as nullable.', $key, $this->class)
+            );
         }
 
         return $this->class::make($value);

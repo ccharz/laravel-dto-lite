@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Ccharz\DtoLite\Casts;
 
 use Ccharz\DtoLite\Contracts\DataTransferObject;
+use Ccharz\DtoLite\Exceptions\InvalidCastException;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Contracts\Database\Eloquent\SerializesCastableAttributes;
 use Illuminate\Database\Eloquent\Casts\Json;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
 class AsDataTransferObjectCollection implements Castable
@@ -40,8 +40,10 @@ class AsDataTransferObjectCollection implements Castable
 
                 $data = Json::decode($attributes[$key]);
 
-                if (! is_array($data) || ! Arr::isList($data)) {
-                    return;
+                if (! is_array($data) || ! array_is_list($data)) {
+                    throw new InvalidCastException(sprintf(
+                        'Attribute [%s] does not contain a JSON list of [%s].', $key, $this->arguments[0]
+                    ));
                 }
 
                 $dataTransferObjectClass = $this->arguments[0];

@@ -9,6 +9,8 @@ use Ccharz\DtoLite\Casts\AsDataTransferObject;
 use Ccharz\DtoLite\Casts\AsDataTransferObjectCollection;
 use Ccharz\DtoLite\Contracts\DataTransferObject as DataTransferObjectContract;
 use Ccharz\DtoLite\DataTransferObject;
+use Ccharz\DtoLite\Exceptions\InvalidCastException;
+use Ccharz\DtoLite\Exceptions\InvalidDataException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +19,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Testing\PendingCommand;
 use Illuminate\Validation\Rules\Date as RulesDate;
 use Illuminate\Validation\Rules\Enum;
@@ -209,6 +212,14 @@ class DataTransferObjectTest extends TestCase
         $this->assertNull($dto->test);
     }
 
+    public function test_it_fails_from_invalid_json(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $this->expectException(InvalidDataException::class);
+        $mock::make('{"test": "}');
+    }
+
     public function test_it_can_make_dto_from_request(): void
     {
         $mock = $this->prepareSimpleDtoObject();
@@ -263,7 +274,7 @@ class DataTransferObjectTest extends TestCase
 
         $cast = new AsDataTransferObject($mock::class, []);
 
-        $this->expectExceptionMessage('data is not a string');
+        $this->expectExceptionMessageIsOrContains('Attribute [data] is null, but the [Ccharz\DtoLite\Tests\SimpleDtoObject] cast is not marked as nullable.');
         $cast->get($model, 'data', null, []);
     }
 
@@ -308,7 +319,7 @@ class DataTransferObjectTest extends TestCase
         $request = (new Request)->merge(['test' => 'ABC']);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('The test field must be at least 15 characters.');
+        $this->expectExceptionMessageIsOrContains('The test field must be at least 15 characters.');
         $mock::make($request);
     }
 
@@ -345,6 +356,16 @@ class DataTransferObjectTest extends TestCase
         $this->assertNull($dto->test);
     }
 
+    public function test_it_fails_to_cast_with_invalid_dates(): void
+    {
+        $mock = new SimpleDateDtoObject(Carbon::parse('01.01.2022'));
+
+        $this->expectException(InvalidCastException::class);
+        $this->expectExceptionMessageIsOrContains('Cannot cast array to a date.');
+
+        $mock::make(['test' => []]);
+    }
+
     public function test_it_validates_dates(): void
     {
         $this->assertInstanceOf(RulesDate::class, SimpleDateDtoObject::rules()['test'][0] ?? null);
@@ -377,6 +398,25 @@ class DataTransferObjectTest extends TestCase
         $this->assertSame(['nullable', 'array'], $dto::rules()['test_cast'] ?? []);
     }
 
+    public function test_it_can_handle_empty_array_casts(): void
+    {
+        $dto = CastableArrayDtoObject::make([
+            'test_cast' => null,
+        ]);
+
+        $this->assertSame([], $dto->test_cast);
+    }
+
+    public function test_it_fails_to_cast_with_invalid_array(): void
+    {
+        $this->expectException(InvalidCastException::class);
+        $this->expectExceptionMessageIsOrContains('Expected an array for cast [Ccharz\DtoLite\Tests\SimpleDtoObject[]], got string');
+
+        CastableNullableArrayDtoObject::make([
+            'test_cast' => 'asd',
+        ]);
+    }
+
     public function test_it_can_cast_enums(): void
     {
         $mock = new SimpleEnumDtoObject(TestEnum::A);
@@ -392,6 +432,16 @@ class DataTransferObjectTest extends TestCase
         $this->assertCount(1, $rules['testEnum']);
         $this->assertInstanceOf(Enum::class, $rules['testEnum'][0]);
         $this->assertTrue($rules['testEnum'][0]->passes('testEnum', 'B'));
+    }
+
+    public function test_it_fails_to_cast_to_an_enum_with_invalid_data(): void
+    {
+        $mock = new SimpleEnumDtoObject(TestEnum::A);
+
+        $this->expectException(InvalidCastException::class);
+        $this->expectExceptionMessageIs('Cannot cast array to enum [Ccharz\DtoLite\Tests\TestEnum].');
+
+        $mock::make(['testEnum' => []]);
     }
 
     public function test_it_works_with_already_casted_enum(): void
@@ -495,7 +545,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new NonCastableAObject('');
 
-        $this->expectExceptionMessage('Unknown cast "test1234"');
+        $this->expectExceptionMessageIsOrContains('Unknown cast "test1234"');
 
         $mock::make(['test_cast' => []]);
     }
@@ -543,6 +593,24 @@ class DataTransferObjectTest extends TestCase
         $this->assertCount(2, $result);
     }
 
+    public function test_it_can_map_to_dto_collections_with_key(): void
+    {
+        $mock = $this->prepareSimpleDtoObject();
+
+        $result = $mock::mapToDtoArray(
+            new Collection(['data' => [['test' => 'A'], ['test' => 'B']]]),
+            'data'
+        );
+
+        $this->assertCount(2, $result);
+    }
+
+    public function test_it_fails_to_map_to_dto_on_a_non_offsetable_iterable(): void
+    {
+        $this->expectException(InvalidDataException::class);
+        $this->assertSame([], SimpleDtoObject::mapToDtoArray(new LazyCollection(['data' => [['test' => 'A'], ['test' => 'B']]]), 'data'));
+    }
+
     public function test_it_can_map_to_dto_arrays_with_missing_key(): void
     {
         $mock = $this->prepareSimpleDtoObject();
@@ -559,7 +627,8 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = $this->prepareSimpleDtoObject();
 
-        $this->expectExceptionMessage('Invalid data to make data transfer object');
+        $this->expectException(InvalidDataException::class);
+        $this->expectExceptionMessageIsOrContains('Cannot make Ccharz\DtoLite\Tests\SimpleDtoObject from stdClass.');
 
         $mock::make(new stdClass);
     }
@@ -635,10 +704,10 @@ class DataTransferObjectTest extends TestCase
 
     public function test_it_can_generate_a_new_data_transfer_object(): void
     {
-        $result = $this->artisan('make:dto Test');
+        $command = $this->artisan('make:dto Test');
 
-        if ($result instanceof PendingCommand) {
-            $result->assertSuccessful();
+        if ($command instanceof PendingCommand) {
+            $command->assertSuccessful()->run();
         }
 
         $filesystem = app(Filesystem::class);
@@ -678,8 +747,10 @@ class DataTransferObjectTest extends TestCase
 
         $model->setRawAttributes(['items' => '{"test":"Test"}']);
 
+        $this->expectException(InvalidCastException::class);
         /** @phpstan-ignore property.notFound */
         $this->assertNull($model->items);
+
     }
 
     public function test_it_fails_silently_when_trying_to_cast_model_attributes_without_data(): void

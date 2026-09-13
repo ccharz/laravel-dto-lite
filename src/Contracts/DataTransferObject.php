@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Ccharz\DtoLite\Contracts;
 
-use ArrayAccess;
 use Ccharz\DtoLite\Exceptions\InvalidDataException;
 use Illuminate\Contracts\Database\Eloquent\Castable;
 use Illuminate\Contracts\Support\Arrayable;
@@ -28,6 +27,11 @@ interface DataTransferObject extends Arrayable, Castable, Jsonable, JsonSerializ
      * @return array<string,array<int,mixed>>
      */
     public static function rules(?Request $request = null): array;
+
+    /**
+     * @return array<string,string>
+     */
+    public static function casts(): array;
 
     /**
      * Convert the data transfer object into something JSON serializable.
@@ -55,21 +59,17 @@ interface DataTransferObject extends Arrayable, Castable, Jsonable, JsonSerializ
      * @param  array<string,array<int,mixed>>  $rules
      * @return array<string,array<int,mixed>>
      */
-    public static function appendRules(array $rules, string $key): array;
+    public static function appendRules(array $rules, string $key, ?Request $request = null): array;
 
     /**
-     * @template TKey of array-key
-     * @template T of ArrayAccess<TKey,mixed>|array<TKey,mixed>
-     *
-     * @param  T  $array_map
-     * @param  TKey|null  $offset
+     * @param  iterable<array-key,mixed>  $items
      * @return static[]
      */
-    public static function mapToDtoArray(ArrayAccess|array $array_map, string|int|null $offset = null): array;
+    public static function mapToDtoArray(iterable $items, string|int|null $offset = null): array;
 
     /**
      * @param  array<string,array<int,mixed>>  $rules
      * @return array<string,array<int,mixed>>
      */
-    public static function appendArrayElementRules(array $rules, string $key): array;
+    public static function appendArrayElementRules(array $rules, string $key, ?Request $request = null): array;
 }
