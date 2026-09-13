@@ -274,7 +274,7 @@ class DataTransferObjectTest extends TestCase
 
         $cast = new AsDataTransferObject($mock::class, []);
 
-        $this->expectExceptionMessageIsOrContains('Attribute [data] is null, but the [Ccharz\DtoLite\Tests\SimpleDtoObject] cast is not marked as nullable.');
+        $this->expectExceptionMessageToContain('Attribute [data] is null, but the [Ccharz\DtoLite\Tests\SimpleDtoObject] cast is not marked as nullable.');
         $cast->get($model, 'data', null, []);
     }
 
@@ -319,7 +319,7 @@ class DataTransferObjectTest extends TestCase
         $request = (new Request)->merge(['test' => 'ABC']);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessageIsOrContains('The test field must be at least 15 characters.');
+        $this->expectExceptionMessageToContain('The test field must be at least 15 characters.');
         $mock::make($request);
     }
 
@@ -361,7 +361,7 @@ class DataTransferObjectTest extends TestCase
         $mock = new SimpleDateDtoObject(Carbon::parse('01.01.2022'));
 
         $this->expectException(InvalidCastException::class);
-        $this->expectExceptionMessageIsOrContains('Cannot cast array to a date.');
+        $this->expectExceptionMessageToContain('Cannot cast array to a date.');
 
         $mock::make(['test' => []]);
     }
@@ -370,7 +370,7 @@ class DataTransferObjectTest extends TestCase
     {
         $this->assertInstanceOf(RulesDate::class, SimpleDateDtoObject::rules()['test'][0] ?? null);
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessageIsOrContains('The test field must be a valid date.');
+        $this->expectExceptionMessageToContain('The test field must be a valid date.');
 
         SimpleDateDtoObject::validate(['test' => 'string']);
     }
@@ -410,7 +410,7 @@ class DataTransferObjectTest extends TestCase
     public function test_it_fails_to_cast_with_invalid_array(): void
     {
         $this->expectException(InvalidCastException::class);
-        $this->expectExceptionMessageIsOrContains('Expected an array for cast [Ccharz\DtoLite\Tests\SimpleDtoObject[]], got string');
+        $this->expectExceptionMessageToContain('Expected an array for cast [Ccharz\DtoLite\Tests\SimpleDtoObject[]], got string');
 
         CastableNullableArrayDtoObject::make([
             'test_cast' => 'asd',
@@ -439,7 +439,7 @@ class DataTransferObjectTest extends TestCase
         $mock = new SimpleEnumDtoObject(TestEnum::A);
 
         $this->expectException(InvalidCastException::class);
-        $this->expectExceptionMessageIs('Cannot cast array to enum [Ccharz\DtoLite\Tests\TestEnum].');
+        $this->expectExceptionMessageToBe('Cannot cast array to enum [Ccharz\DtoLite\Tests\TestEnum].');
 
         $mock::make(['testEnum' => []]);
     }
@@ -545,7 +545,7 @@ class DataTransferObjectTest extends TestCase
     {
         $mock = new NonCastableAObject('');
 
-        $this->expectExceptionMessageIsOrContains('Unknown cast "test1234"');
+        $this->expectExceptionMessageToContain('Unknown cast "test1234"');
 
         $mock::make(['test_cast' => []]);
     }
@@ -628,7 +628,7 @@ class DataTransferObjectTest extends TestCase
         $mock = $this->prepareSimpleDtoObject();
 
         $this->expectException(InvalidDataException::class);
-        $this->expectExceptionMessageIsOrContains('Cannot make Ccharz\DtoLite\Tests\SimpleDtoObject from stdClass.');
+        $this->expectExceptionMessageToContain('Cannot make Ccharz\DtoLite\Tests\SimpleDtoObject from stdClass.');
 
         $mock::make(new stdClass);
     }
